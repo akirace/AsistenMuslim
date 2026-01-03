@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -173,7 +174,7 @@ fun BottomNavItemView(item: BottomNavItem, isSelected: Boolean, onClick: () -> U
 
 @Composable
 fun FloatingActiveItem(item: BottomNavItem) {
-    val orangeColor = Color(0xFFFF5722)
+    val activeColor = MaterialTheme.colorScheme.primary // Use Primary (DarkGreen/Teal)
     
     // The Floating Item
     // Since this is inside a Row with Alignment.Bottom, 0 offset is at the bottom.
@@ -187,7 +188,7 @@ fun FloatingActiveItem(item: BottomNavItem) {
         // White Circle with Shadow
         Surface(
             shape = CircleShape,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface, // Match surface color
             shadowElevation = 4.dp,
             modifier = Modifier.size(56.dp)
         ) {
@@ -198,7 +199,7 @@ fun FloatingActiveItem(item: BottomNavItem) {
                  Icon(
                      imageVector = item.iconOutlined,
                      contentDescription = item.label,
-                     tint = orangeColor,
+                     tint = activeColor,
                      modifier = Modifier.size(30.dp)
                  )
              }
@@ -208,7 +209,7 @@ fun FloatingActiveItem(item: BottomNavItem) {
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = item.label,
-            color = orangeColor,
+            color = activeColor,
             fontSize = 12.sp
         )
     }

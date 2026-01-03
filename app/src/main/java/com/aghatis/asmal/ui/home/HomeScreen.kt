@@ -12,11 +12,12 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.filled.Warning // Delete this later if not used
-import androidx.compose.material.icons.filled.Info // Placeholder for pause if needed, or use a drawable
-// Actually Compose has Icons.Filled.Pause but needs import or it's standard
+import androidx.compose.material.icons.filled.Warning 
+import androidx.compose.material.icons.filled.Info 
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,11 +25,9 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.* // Pause is often not in material3 direct but in icons package
-// Pause is generic. 
-// I will assume users have standard icon set.
-// Actually, `androidx.compose.material.icons.filled.Pause` is the path.
-// Let's add that import manually.
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material3.* 
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,8 +51,11 @@ import android.media.MediaPlayer
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Warning
 import com.aghatis.asmal.data.model.AyahResponse
+import com.aghatis.asmal.data.repository.Mosque
 import com.aghatis.asmal.data.repository.QuranRepository
+import com.aghatis.asmal.data.repository.MosqueRepository
 import com.aghatis.asmal.ui.home.AyahUiState
+import com.aghatis.asmal.ui.home.MosqueUiState
 
 @Composable
 fun HomeScreen() {
@@ -61,13 +63,15 @@ fun HomeScreen() {
     val prefsRepository = PrefsRepository(context)
     val prayerRepository = PrayerRepository()
     val quranRepository = QuranRepository()
+    val mosqueRepository = MosqueRepository(context) 
     val viewModel: HomeViewModel = viewModel(
-        factory = HomeViewModel.Factory(prefsRepository, prayerRepository, quranRepository)
+        factory = HomeViewModel.Factory(prefsRepository, prayerRepository, quranRepository, mosqueRepository)
     )
 
     val user by viewModel.userState.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val ayahState by viewModel.ayahState.collectAsState()
+    val mosqueState by viewModel.mosqueState.collectAsState()
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -151,8 +155,181 @@ fun HomeScreen() {
              }
         }
         
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        // 4. Nearest Mosque Section (Third Feature Section)
+        Text(
+            text = "Masjid Terdekat",
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp
+            )
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        when (val state = mosqueState) {
+            is MosqueUiState.Loading -> {
+                 Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                 }
+            }
+            is MosqueUiState.Error -> {
+                 ErrorCard(message = "Gagal memuat masjid: ${state.message}")
+            }
+            is MosqueUiState.Success -> {
+                 NearestMosqueSection(mosques = state.mosques) { mosque ->
+                     val gmmIntentUri = android.net.Uri.parse("google.navigation:q=${mosque.lat},${mosque.lon}")
+                     val mapIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, gmmIntentUri)
+                     mapIntent.setPackage("com.google.android.apps.maps")
+                     
+                     // Verify if the intent can be resolved
+                     // Since standard Android often has maps, we try. If null, maybe open in browser.
+                     try {
+                         context.startActivity(mapIntent)
+                     } catch (e: Exception) {
+                         // Fallback to browser
+                         val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${mosque.lat},${mosque.lon}"))
+                         context.startActivity(browserIntent)
+                     }
+                 }
+            }
+        }
+
         // Add extra spacer for bottom navigation overlap prevention
         Spacer(modifier = Modifier.height(100.dp))
+    }
+}
+
+@Composable
+fun NearestMosqueSection(mosques: List<Mosque>, onMosqueClick: (Mosque) -> Unit) {
+    if (mosques.isEmpty()) {
+        Card(
+             modifier = Modifier.fillMaxWidth(),
+             colors = CardDefaults.cardColors(containerColor = Color.White),
+             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+             shape = RoundedCornerShape(20.dp)
+        ) {
+             Box(modifier = Modifier.padding(20.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                 Text("Tidak ada masjid ditemukan di sekitar.", color = Color.Gray)
+             }
+        }
+    } else {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(mosques.take(10)) { mosque ->
+                MosqueItemCard(mosque = mosque, onClick = { onMosqueClick(mosque) })
+            }
+        }
+    }
+}
+
+@Composable
+fun MosqueItemCard(mosque: Mosque, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .width(240.dp)
+            .height(140.dp) // Fixed height for uniformity
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp), // Initial elevation
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Top Row: Icon + Distance
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Icon Container
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Filled.Place,
+                            contentDescription = "Mosque",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                // Distance Badge
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.secondary,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.LocationOn,
+                            contentDescription = "Distance",
+                            tint = Color.White,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = String.format("%.1f km", mosque.distance / 1000),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp
+                            ),
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+
+            // Bottom Content: Name + Address
+            Column(modifier = Modifier.padding(top = 8.dp)) {
+                Text(
+                    text = mosque.name,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        letterSpacing = 0.5.sp
+                    ),
+                    color = Color.Black, // Darker text for better readability
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                     Icon(
+                         imageVector = Icons.Filled.Info, // Placeholder for address icon or just use text
+                         contentDescription = null, // decorative
+                         tint = Color.Gray,
+                         modifier = Modifier.size(12.dp) 
+                     )
+                     Spacer(modifier = Modifier.width(4.dp))
+                     Text(
+                        text = mosque.address ?: "Alamat tidak tersedia",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = Color.Gray,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                     )
+                }
+            }
+        }
     }
 }
 
@@ -500,3 +677,4 @@ fun PrayerItemRow(name: String, time: String, isNext: Boolean, activeColor: Colo
         Text(text = time, style = MaterialTheme.typography.bodyLarge, fontWeight = weight, color = textColor)
     }
 }
+

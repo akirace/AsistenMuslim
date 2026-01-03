@@ -12,6 +12,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.aghatis.asmal.data.model.AyahResponse
 import com.aghatis.asmal.data.model.PrayerData
 import com.aghatis.asmal.data.model.User
+import com.aghatis.asmal.data.repository.Mosque
+import com.aghatis.asmal.data.repository.MosqueRepository
 import com.aghatis.asmal.data.repository.PrayerRepository
 import com.aghatis.asmal.data.repository.PrefsRepository
 import com.aghatis.asmal.data.repository.QuranRepository
@@ -32,7 +34,8 @@ import java.util.Locale
 class HomeViewModel(
     private val prefsRepository: PrefsRepository,
     private val prayerRepository: PrayerRepository,
-    private val quranRepository: QuranRepository
+    private val quranRepository: QuranRepository,
+    private val mosqueRepository: MosqueRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -41,14 +44,11 @@ class HomeViewModel(
     private val _userState = MutableStateFlow<User?>(null)
     val userState: StateFlow<User?> = _userState.asStateFlow()
     
-    // Keeping separate state for Ayah to not block main loading if needed,
-    // or we can bundle it. For now, let's bundle or add a separate flow.
-    // Let's modify HomeUiState to optionally include Ayah, or have a separate flow.
-    // Given the structure, bundling in Success is cleanest if we want it all at once, 
-    // but fetching is async. Let's add a separate flow for Ayah to allow independent loading.
-    
     private val _ayahState = MutableStateFlow<AyahUiState>(AyahUiState.Loading)
     val ayahState: StateFlow<AyahUiState> = _ayahState.asStateFlow()
+
+    private val _mosqueState = MutableStateFlow<MosqueUiState>(MosqueUiState.Loading)
+    val mosqueState: StateFlow<MosqueUiState> = _mosqueState.asStateFlow()
 
     init {
         loadUser()
@@ -79,6 +79,7 @@ class HomeViewModel(
     fun fetchPrayerTimesWithLocation(context: Context) {
         viewModelScope.launch {
             _uiState.value = HomeUiState.Loading
+            _mosqueState.value = MosqueUiState.Loading
             try {
                 val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
                 
@@ -91,18 +92,22 @@ class HomeViewModel(
                 if (locationResult != null) {
                     val address = getAddress(context, locationResult.latitude, locationResult.longitude)
                     fetchPrayerTimes(locationResult.latitude, locationResult.longitude, address)
+                    fetchNearestMosques(locationResult.latitude, locationResult.longitude)
                 } else {
                     // Fallback to last location if current fails or is null
                      val lastLocation = fusedLocationClient.lastLocation.await()
                      if (lastLocation != null) {
                          val address = getAddress(context, lastLocation.latitude, lastLocation.longitude)
                          fetchPrayerTimes(lastLocation.latitude, lastLocation.longitude, address)
+                         fetchNearestMosques(lastLocation.latitude, lastLocation.longitude)
                      } else {
                          _uiState.value = HomeUiState.Error("Unable to get location")
+                         _mosqueState.value = MosqueUiState.Error("Unable to get location")
                      }
                 }
             } catch (e: Exception) {
                 _uiState.value = HomeUiState.Error("Location error: ${e.message}")
+                _mosqueState.value = MosqueUiState.Error("Location error: ${e.message}")
             }
         }
     }
@@ -133,14 +138,29 @@ class HomeViewModel(
         }
     }
 
+    private suspend fun fetchNearestMosques(lat: Double, long: Double) {
+        val result = mosqueRepository.getNearestMosques(lat, long)
+        result.onSuccess { mosques ->
+            _mosqueState.value = MosqueUiState.Success(mosques)
+        }.onFailure { e ->
+            _mosqueState.value = MosqueUiState.Error(e.message ?: "Failed to fetch mosques")
+        }
+    }
+
     companion object {
         fun Factory(
             prefsRepository: PrefsRepository,
             prayerRepository: PrayerRepository,
-            quranRepository: QuranRepository
+            quranRepository: QuranRepository,
+            mosqueRepository: MosqueRepository
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                HomeViewModel(prefsRepository, prayerRepository, quranRepository)
+                HomeViewModel(
+                    prefsRepository, 
+                    prayerRepository, 
+                    quranRepository,
+                    mosqueRepository
+                )
             }
         }
     }
@@ -156,4 +176,10 @@ sealed class AyahUiState {
     object Loading : AyahUiState()
     data class Success(val ayah: AyahResponse) : AyahUiState()
     data class Error(val message: String) : AyahUiState()
+}
+
+sealed class MosqueUiState {
+    object Loading : MosqueUiState()
+    data class Success(val mosques: List<Mosque>) : MosqueUiState()
+    data class Error(val message: String) : MosqueUiState()
 }
