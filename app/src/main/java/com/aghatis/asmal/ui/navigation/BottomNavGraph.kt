@@ -1,0 +1,29 @@
+package com.aghatis.asmal.ui.navigation
+
+
+import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import com.aghatis.asmal.ui.assistant.AssistantScreen
+import com.aghatis.asmal.ui.components.BottomNavItem
+import com.aghatis.asmal.ui.home.HomeScreen
+import com.aghatis.asmal.ui.profile.ProfileScreen
+
+@Composable
+fun BottomNavGraph(navController: NavHostController) {
+    NavHost(
+        navController = navController,
+        startDestination = BottomNavItem.Home.route
+    ) {
+        composable(BottomNavItem.Home.route) {
+            HomeScreen()
+        }
+        composable(BottomNavItem.Assistant.route) {
+            AssistantScreen()
+        }
+        composable(BottomNavItem.Profile.route) {
+            ProfileScreen()
+        }
+    }
+}

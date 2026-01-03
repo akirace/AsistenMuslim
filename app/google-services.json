@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "934443120370",
+    "project_id": "asisten-amal-muslim1",
+    "storage_bucket": "asisten-amal-muslim1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:934443120370:android:11f34b1cd01b1cac41c26b",
+        "android_client_info": {
+          "package_name": "com.aghatis.asmal"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "934443120370-ncqhg7grqidl3a5f9ik484jurjpif0qb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aghatis.asmal",
+            "certificate_hash": "66fc5dd7e824973435f1989266b48ef16716ac2e"
+          }
+        },
+        {
+          "client_id": "934443120370-u36memmiulf60jan8ak2sj9sm0rrbnva.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC8kcCfDUsr6LZWm9lawKnUdT46SCdK2H4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "934443120370-u36memmiulf60jan8ak2sj9sm0rrbnva.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
