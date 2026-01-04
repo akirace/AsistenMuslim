@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import com.aghatis.asmal.ui.assistant.AssistantScreen
 import com.aghatis.asmal.ui.components.BottomNavItem
 import com.aghatis.asmal.ui.home.HomeScreen
+import com.aghatis.asmal.ui.menu.MenuTabScreen
 import com.aghatis.asmal.ui.profile.ProfileScreen
 
 @Composable
@@ -18,6 +19,9 @@ fun BottomNavGraph(navController: NavHostController) {
     ) {
         composable(BottomNavItem.Home.route) {
             HomeScreen()
+        }
+        composable(BottomNavItem.Menu.route) {
+            MenuTabScreen()
         }
         composable(BottomNavItem.Assistant.route) {
             AssistantScreen()

@@ -1,39 +1,32 @@
-package com.aghatis.asmal.ui.menu
+package com.aghatis.asmal.ui.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.aghatis.asmal.data.model.User
 import com.aghatis.asmal.data.repository.AuthRepository
 import com.aghatis.asmal.data.repository.PrefsRepository
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class MenuViewModel(
+class ProfileViewModel(
     private val authRepository: AuthRepository,
     private val prefsRepository: PrefsRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<MenuUiState>(MenuUiState.Idle)
-    val uiState: StateFlow<MenuUiState> = _uiState.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            prefsRepository.isLoggedIn.collect { isLoggedIn ->
-                if (!isLoggedIn) {
-                    _uiState.value = MenuUiState.LoggedOut
-                }
-            }
-        }
-    }
+    val userState: StateFlow<User?> = prefsRepository.userData
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
 
     fun logout() {
         viewModelScope.launch {
-            _uiState.value = MenuUiState.Loading
             authRepository.signOut()
             prefsRepository.clearSession()
         }
@@ -45,14 +38,8 @@ class MenuViewModel(
             prefsRepository: PrefsRepository
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                MenuViewModel(authRepository, prefsRepository)
+                ProfileViewModel(authRepository, prefsRepository)
             }
         }
     }
-}
-
-sealed class MenuUiState {
-    object Idle : MenuUiState()
-    object Loading : MenuUiState()
-    object LoggedOut : MenuUiState()
 }

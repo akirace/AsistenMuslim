@@ -2,10 +2,8 @@ package com.aghatis.asmal.ui.home
 
 import android.Manifest
 import android.widget.Toast
-import android.widget.Toast.*
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -16,7 +14,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.filled.Warning 
 import androidx.compose.material.icons.filled.Info 
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,19 +40,12 @@ import coil.compose.AsyncImage
 import com.aghatis.asmal.data.model.PrayerData
 import com.aghatis.asmal.data.repository.PrayerRepository
 import com.aghatis.asmal.data.repository.PrefsRepository
-import com.aghatis.asmal.ui.home.HomeUiState
-import com.aghatis.asmal.ui.home.HomeViewModel
 import com.aghatis.asmal.utils.PrayerTimeUtils
-
 import android.media.MediaPlayer
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Warning
 import com.aghatis.asmal.data.model.AyahResponse
 import com.aghatis.asmal.data.repository.Mosque
 import com.aghatis.asmal.data.repository.QuranRepository
 import com.aghatis.asmal.data.repository.MosqueRepository
-import com.aghatis.asmal.ui.home.AyahUiState
-import com.aghatis.asmal.ui.home.MosqueUiState
 
 @Composable
 fun HomeScreen() {
@@ -461,7 +451,7 @@ fun TodayAyahCard(ayah: AyahResponse) {
                             }
                         },
                         modifier = Modifier
-                            .background(Color(0xFFFF5722), CircleShape)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
                             .size(48.dp)
                     ) {
                         Icon(
@@ -549,7 +539,7 @@ fun PrayerTimesCard(prayerData: PrayerData, locationName: String) {
     var expanded by remember { mutableStateOf(false) }
     val nextPrayer = remember(prayerData) { PrayerTimeUtils.getNextPrayer(prayerData.times) }
     val cardBgColor = Color(0xFFF5F7FA) // Very light gray/blue
-    val activeColor = Color(0xFFFF5722) // Orange accent
+    val activeColor = MaterialTheme.colorScheme.primary // Brand color
 
     Card(
         modifier = Modifier

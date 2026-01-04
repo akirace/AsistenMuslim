@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +49,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 
 sealed class BottomNavItem(val route: String, val iconFilled: ImageVector, val iconOutlined: ImageVector, val label: String) {
     object Home : BottomNavItem("home", Icons.Filled.Home, Icons.Outlined.Home, "Home")
+    object Menu : BottomNavItem("menu", Icons.Filled.Menu, Icons.Outlined.Menu, "Menu")
     object Assistant : BottomNavItem("assistant", Icons.Filled.Star, Icons.Outlined.Star, "Assistant")
     object Profile : BottomNavItem("profile", Icons.Filled.AccountCircle, Icons.Outlined.AccountCircle, "Profile")
 }
@@ -56,6 +59,7 @@ sealed class BottomNavItem(val route: String, val iconFilled: ImageVector, val i
 fun CustomBottomNavigation(navController: NavController) {
     val items = listOf(
         BottomNavItem.Home,
+        BottomNavItem.Menu,
         BottomNavItem.Assistant,
         BottomNavItem.Profile
     )
