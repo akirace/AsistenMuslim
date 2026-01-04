@@ -112,7 +112,10 @@ fun HomeScreen() {
                 }
             }
             is HomeUiState.Error -> {
-                ErrorCard(message = state.message)
+                ErrorCard(
+                    message = "Ada kendala di third party nya, silahkan coba lagi",
+                    onRefresh = { viewModel.fetchPrayerTimesWithLocation(context) }
+                )
             }
             is HomeUiState.Success -> {
                 PrayerTimesCard(prayerData = state.prayerData, locationName = state.locationName)
@@ -164,7 +167,10 @@ fun HomeScreen() {
                  }
             }
             is MosqueUiState.Error -> {
-                 ErrorCard(message = "Gagal memuat masjid: ${state.message}")
+                ErrorCard(
+                    message = "Ada kendala di third party nya, silahkan coba lagi",
+                    onRefresh = { viewModel.fetchPrayerTimesWithLocation(context) }
+                )
             }
             is MosqueUiState.Success -> {
                  NearestMosqueSection(mosques = state.mosques) { mosque ->
@@ -516,20 +522,37 @@ fun WelcomeHeader(userName: String?, photoUrl: String?) {
 }
 
 @Composable
-fun ErrorCard(message: String) {
+fun ErrorCard(message: String, onRefresh: (() -> Unit)? = null) {
     Card(
          modifier = Modifier.fillMaxWidth(),
          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f))
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.weight(1f)
             )
+            
+            onRefresh?.let {
+                Spacer(modifier = Modifier.width(16.dp))
+                Button(
+                    onClick = it,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    Text("Coba Lagi", style = MaterialTheme.typography.labelLarge)
+                }
+            }
         }
     }
 }
