@@ -22,16 +22,23 @@ fun BottomNavGraph(navController: NavHostController) {
             HomeScreen()
         }
         composable(BottomNavItem.Menu.route) {
-            MenuTabScreen()
+            MenuTabScreen(
+                onNavigateToQuran = {
+                    navController.navigate("quran")
+                }
+            )
         }
         composable(BottomNavItem.Assistant.route) {
-            AssistantScreen()
+            // AssistantScreen()
         }
         composable(BottomNavItem.Profile.route) {
             ProfileScreen(onNavigateToSettings = { navController.navigate("settings") })
         }
         composable("settings") {
             SettingScreen(onNavigateBack = { navController.popBackStack() })
+        }
+        composable("quran") {
+            com.aghatis.asmal.ui.quran.QuranScreen(navController = navController)
         }
     }
 }

@@ -10,4 +10,7 @@ interface QuranApi {
         @Path("surahNo") surahNo: Int,
         @Path("ayahNo") ayahNo: Int
     ): AyahResponse
+
+    @GET("surah.json")
+    suspend fun getSurahList(): List<com.aghatis.asmal.data.model.SurahDto>
 }

@@ -66,7 +66,7 @@ fun HomeScreen() {
     val context = LocalContext.current
     val prefsRepository = PrefsRepository(context)
     val prayerRepository = PrayerRepository()
-    val quranRepository = QuranRepository()
+    val quranRepository = QuranRepository(context)
     val mosqueRepository = MosqueRepository(context)
     val prayerLogRepository = PrayerLogRepository()
     val viewModel: HomeViewModel = viewModel(

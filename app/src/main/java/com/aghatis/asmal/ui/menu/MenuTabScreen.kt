@@ -34,21 +34,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
-data class MenuItem(
-    val title: String,
-    val icon: ImageVector,
-    val color: Color
-)
-
 @Composable
-fun MenuTabScreen() {
+fun MenuTabScreen(onNavigateToQuran: () -> Unit) {
     val menuItems = listOf(
-        MenuItem("Al-Qur'an", Icons.Filled.Star, MaterialTheme.colorScheme.primary),
-        MenuItem("How to Pray", Icons.Filled.Person, MaterialTheme.colorScheme.secondary),
-        MenuItem("Qibla", Icons.Filled.LocationOn, MaterialTheme.colorScheme.tertiary),
-        MenuItem("Dzikir", Icons.Filled.Favorite, MaterialTheme.colorScheme.error), // Just an example mapping, better to stick to distinct colors or custom theme attributes if available
-        MenuItem("Doa", Icons.Filled.CheckCircle, MaterialTheme.colorScheme.primary),
-        MenuItem("Hadith", Icons.Filled.Info, MaterialTheme.colorScheme.secondary)
+        MenuItem("Al-Qur'an", Icons.Filled.Star, MaterialTheme.colorScheme.primary, onClick = onNavigateToQuran),
+        MenuItem("How to Pray", Icons.Filled.Person, MaterialTheme.colorScheme.secondary, onClick = {}),
+        MenuItem("Qibla", Icons.Filled.LocationOn, MaterialTheme.colorScheme.tertiary, onClick = {}),
+        MenuItem("Dzikir", Icons.Filled.Favorite, MaterialTheme.colorScheme.error, onClick = {}), 
+        MenuItem("Doa", Icons.Filled.CheckCircle, MaterialTheme.colorScheme.primary, onClick = {}),
+        MenuItem("Hadith", Icons.Filled.Info, MaterialTheme.colorScheme.secondary, onClick = {})
     )
     
      // Animation State
@@ -121,7 +115,7 @@ fun MenuGridItem(item: MenuItem) {
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .clickable { /* Handle click */ },
+            .clickable { item.onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -164,3 +158,10 @@ fun MenuGridItem(item: MenuItem) {
         }
     }
 }
+
+data class MenuItem(
+    val title: String,
+    val icon: ImageVector,
+    val color: Color,
+    val onClick: () -> Unit
+)

@@ -2,11 +2,18 @@ package com.aghatis.asmal.data.repository
 
 import com.aghatis.asmal.data.model.AyahResponse
 import com.aghatis.asmal.data.remote.QuranApi
+import com.aghatis.asmal.data.model.SurahDto
+import com.aghatis.asmal.data.model.SurahEntity
+import com.aghatis.asmal.data.model.toEntity
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-class QuranRepository {
+class QuranRepository(context: android.content.Context) {
     private val api: QuranApi
+    private val db = androidx.room.Room.databaseBuilder(
+        context.applicationContext,
+        com.aghatis.asmal.data.local.AppDatabase::class.java, "asisten_muslim.db"
+    ).build()
 
     init {
         val retrofit = Retrofit.Builder()
@@ -14,6 +21,23 @@ class QuranRepository {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         api = retrofit.create(QuranApi::class.java)
+    }
+
+    suspend fun getSurahs(): kotlinx.coroutines.flow.Flow<List<SurahEntity>> {
+        val count = db.surahDao().getSurahCount()
+        if (count == 0 || count < 114) { // Refresh if empty or incomplete
+            try {
+                val surahDtos = api.getSurahList()
+                val surahEntities = surahDtos.mapIndexed { index, dto ->
+                    dto.toEntity(index + 1)
+                }
+                db.surahDao().deleteAll()
+                db.surahDao().insertAll(surahEntities)
+            } catch (e: Exception) {
+                e.printStackTrace() 
+            }
+        }
+        return db.surahDao().getAllSurahs()
     }
 
     suspend fun getRandomAyah(): Result<AyahResponse> {
