@@ -13,4 +13,9 @@ interface QuranApi {
 
     @GET("surah.json")
     suspend fun getSurahList(): List<com.aghatis.asmal.data.model.SurahDto>
+
+    @GET("{surahNo}.json")
+    suspend fun getSurahDetail(
+        @Path("surahNo") surahNo: Int
+    ): com.aghatis.asmal.data.model.SurahDetailResponse
 }

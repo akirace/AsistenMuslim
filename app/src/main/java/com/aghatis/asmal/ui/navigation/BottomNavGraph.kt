@@ -40,5 +40,19 @@ fun BottomNavGraph(navController: NavHostController) {
         composable("quran") {
             com.aghatis.asmal.ui.quran.QuranScreen(navController = navController)
         }
+        composable(
+            route = "quran_detail/{surahNo}",
+            arguments = listOf(
+                androidx.navigation.navArgument("surahNo") {
+                    type = androidx.navigation.NavType.IntType
+                }
+            )
+        ) { backStackEntry ->
+            val surahNo = backStackEntry.arguments?.getInt("surahNo") ?: 1
+            com.aghatis.asmal.ui.quran.QuranDetailScreen(
+                navController = navController,
+                surahNo = surahNo
+            )
+        }
     }
 }

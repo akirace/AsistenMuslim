@@ -1,6 +1,7 @@
 package com.aghatis.asmal.data.repository
 
 import com.aghatis.asmal.data.model.AyahResponse
+import com.aghatis.asmal.data.model.SurahDetailResponse
 import com.aghatis.asmal.data.remote.QuranApi
 import com.aghatis.asmal.data.model.SurahDto
 import com.aghatis.asmal.data.model.SurahEntity
@@ -38,6 +39,15 @@ class QuranRepository(context: android.content.Context) {
             }
         }
         return db.surahDao().getAllSurahs()
+    }
+
+    suspend fun getSurahDetail(surahNo: Int): Result<SurahDetailResponse> {
+        return try {
+            val response = api.getSurahDetail(surahNo)
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun getRandomAyah(): Result<AyahResponse> {

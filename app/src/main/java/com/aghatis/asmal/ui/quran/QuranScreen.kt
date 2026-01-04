@@ -2,13 +2,18 @@ package com.aghatis.asmal.ui.quran
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.SecondaryIndicator
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +29,7 @@ import androidx.navigation.NavController
 import com.aghatis.asmal.data.model.SurahEntity
 import com.aghatis.asmal.data.repository.QuranRepository
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,59 +41,99 @@ fun QuranScreen(
     val viewModel: QuranViewModel = viewModel(factory = QuranViewModel.Factory(repository))
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "Al-Qur'an",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+    val tabs = listOf("Qur'an", "Qur'an Audio", "Baca")
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState { tabs.size }
+    val scope = rememberCoroutineScope()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // TabRow
+        TabRow(
+            selectedTabIndex = pagerState.currentPage,
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.primary,
+            indicator = { tabPositions ->
+                SecondaryIndicator(
+                    Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
+                    color = MaterialTheme.colorScheme.primary
                 )
-            )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
+            }
         ) {
-            when (val state = uiState) {
-                is QuranUiState.Loading -> {
-                    LazyColumn(contentPadding = PaddingValues(16.dp)) {
-                        items(10) {
-                            ShimmerSurahItem()
-                            Spacer(modifier = Modifier.height(16.dp))
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = pagerState.currentPage == index,
+                    onClick = {
+                        scope.launch {
+                            pagerState.animateScrollToPage(index)
                         }
-                    }
-                }
-                is QuranUiState.Success -> {
-                    LazyColumn(contentPadding = PaddingValues(16.dp)) {
-                        items(state.surahs) { surah ->
-                            SurahItem(surah = surah)
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-                    }
-                }
-                is QuranUiState.Error -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    },
+                    text = {
                         Text(
-                            text = "Error: ${state.message}",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyLarge
+                            text = title,
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Medium
+                            )
                         )
                     }
+                )
+            }
+        }
+
+        // Pager Content
+        androidx.compose.foundation.pager.HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            when (page) {
+                0 -> SurahListContent(
+                    uiState = uiState,
+                    onSurahClick = { surahNo ->
+                        navController.navigate("quran_detail/$surahNo")
+                    }
+                )
+                1 -> QuranAudioScreen()
+                2 -> TerakhirBacaScreen()
+            }
+        }
+    }
+}
+
+@Composable
+fun SurahListContent(
+    uiState: QuranUiState,
+    onSurahClick: (Int) -> Unit
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        when (val state = uiState) {
+            is QuranUiState.Loading -> {
+                LazyColumn(contentPadding = PaddingValues(16.dp)) {
+                    items(10) {
+                        ShimmerSurahItem()
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
+            }
+            is QuranUiState.Success -> {
+                LazyColumn(contentPadding = PaddingValues(16.dp)) {
+                    items(state.surahs) { surah ->
+                        SurahItem(
+                            surah = surah,
+                            onClick = { onSurahClick(surah.surahNo) }
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
+            }
+            is QuranUiState.Error -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "Error: ${state.message}",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
                 }
             }
         }
@@ -95,12 +141,57 @@ fun QuranScreen(
 }
 
 @Composable
-fun SurahItem(surah: SurahEntity) {
+fun QuranAudioScreen() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Filled.Star, // Use Star as placeholder for audio
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "Quran Audio Feature Coming Soon",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun TerakhirBacaScreen() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Filled.Menu, // Use Menu as placeholder
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "History Reading Coming Soon",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun SurahItem(
+    surah: SurahEntity,
+    onClick: () -> Unit
+) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier

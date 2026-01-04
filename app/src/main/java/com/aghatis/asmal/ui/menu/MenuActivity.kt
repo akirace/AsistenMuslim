@@ -51,7 +51,9 @@ class MenuActivity : ComponentActivity() {
         val navController = rememberNavController()
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
-        val showBottomBar = currentRoute != "settings"
+        val showBottomBar = currentRoute != "settings" && 
+                           currentRoute != "quran" && 
+                           currentRoute?.startsWith("quran_detail") != true
 
         LaunchedEffect(uiState) {
             if (uiState is MenuUiState.LoggedOut) {
