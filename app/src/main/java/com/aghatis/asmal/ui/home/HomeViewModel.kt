@@ -17,6 +17,10 @@ import com.aghatis.asmal.data.repository.MosqueRepository
 import com.aghatis.asmal.data.repository.PrayerRepository
 import com.aghatis.asmal.data.repository.PrefsRepository
 import com.aghatis.asmal.data.repository.QuranRepository
+import com.aghatis.asmal.data.repository.PrayerLogRepository
+import com.aghatis.asmal.data.model.PrayerLog
+import java.text.SimpleDateFormat
+import java.util.Date
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -35,7 +39,8 @@ class HomeViewModel(
     private val prefsRepository: PrefsRepository,
     private val prayerRepository: PrayerRepository,
     private val quranRepository: QuranRepository,
-    private val mosqueRepository: MosqueRepository
+    private val mosqueRepository: MosqueRepository,
+    private val prayerLogRepository: PrayerLogRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -49,6 +54,19 @@ class HomeViewModel(
 
     private val _mosqueState = MutableStateFlow<MosqueUiState>(MosqueUiState.Loading)
     val mosqueState: StateFlow<MosqueUiState> = _mosqueState.asStateFlow()
+
+    private val _selectedDate = MutableStateFlow(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()))
+    val selectedDate: StateFlow<String> = _selectedDate.asStateFlow()
+
+    private val _prayerLogState = MutableStateFlow<PrayerLog>(PrayerLog())
+    val prayerLogState: StateFlow<PrayerLog> = _prayerLogState.asStateFlow()
+
+    private val _prayerProgress = MutableStateFlow(0f)
+    val prayerProgress: StateFlow<Float> = _prayerProgress.asStateFlow()
+    
+    // Cache location for date changes
+    private var lastLat: Double? = null
+    private var lastLong: Double? = null
 
     init {
         loadUser()
@@ -67,10 +85,69 @@ class HomeViewModel(
         }
     }
 
+    private fun observePrayerLog(userId: String, date: String) {
+        viewModelScope.launch {
+            prayerLogRepository.getPrayerLog(userId, date).collectLatest { log ->
+                _prayerLogState.value = log
+                calculateProgress(log)
+            }
+        }
+    }
+    
+    private fun calculateProgress(log: PrayerLog) {
+        val total = 5f
+        var completed = 0f
+        if (log.fajr) completed++
+        if (log.dhuhr) completed++
+        if (log.asr) completed++
+        if (log.maghrib) completed++
+        if (log.isha) completed++
+        _prayerProgress.value = completed / total
+    }
+
+    fun togglePrayerStatus(prayer: String, isChecked: Boolean) {
+        val user = _userState.value ?: return
+        val date = _selectedDate.value
+        viewModelScope.launch {
+            try {
+                prayerLogRepository.updatePrayerStatus(user.id, date, prayer, isChecked)
+            } catch (e: Exception) {
+                // Handle error if needed
+            }
+        }
+    }
+    
+    fun changeDate(daysToAdd: Int) {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        try {
+             val current = sdf.parse(_selectedDate.value) ?: Date()
+             val calendar = java.util.Calendar.getInstance()
+             calendar.time = current
+             calendar.add(java.util.Calendar.DAY_OF_YEAR, daysToAdd)
+             val newDate = sdf.format(calendar.time)
+             _selectedDate.value = newDate
+             
+             // Refresh data
+             val user = _userState.value
+             if (user != null) {
+                 observePrayerLog(user.id, newDate)
+             }
+             
+             if (lastLat != null && lastLong != null) {
+                 viewModelScope.launch {
+                     fetchPrayerTimes(lastLat!!, lastLong!!, newDate)
+                 }
+             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     private fun loadUser() {
         viewModelScope.launch {
             prefsRepository.userData.collectLatest { user ->
                 _userState.value = user
+                user?.let { observePrayerLog(it.id, _selectedDate.value) }
             }
         }
     }
@@ -91,14 +168,18 @@ class HomeViewModel(
 
                 if (locationResult != null) {
                     val address = getAddress(context, locationResult.latitude, locationResult.longitude)
-                    fetchPrayerTimes(locationResult.latitude, locationResult.longitude, address)
+                    lastLat = locationResult.latitude
+                    lastLong = locationResult.longitude
+                    fetchPrayerTimes(locationResult.latitude, locationResult.longitude, _selectedDate.value, address)
                     fetchNearestMosques(locationResult.latitude, locationResult.longitude)
                 } else {
                     // Fallback to last location if current fails or is null
                      val lastLocation = fusedLocationClient.lastLocation.await()
                      if (lastLocation != null) {
                          val address = getAddress(context, lastLocation.latitude, lastLocation.longitude)
-                         fetchPrayerTimes(lastLocation.latitude, lastLocation.longitude, address)
+                         lastLat = lastLocation.latitude
+                         lastLong = lastLocation.longitude
+                         fetchPrayerTimes(lastLocation.latitude, lastLocation.longitude, _selectedDate.value, address)
                          fetchNearestMosques(lastLocation.latitude, lastLocation.longitude)
                      } else {
                          _uiState.value = HomeUiState.Error("Unable to get location")
@@ -129,10 +210,13 @@ class HomeViewModel(
         }
     }
 
-    private suspend fun fetchPrayerTimes(lat: Double, long: Double, address: String) {
-        val result = prayerRepository.getPrayerTimes(lat, long)
+    private suspend fun fetchPrayerTimes(lat: Double, long: Double, date: String, address: String? = null) {
+        val result = prayerRepository.getPrayerTimes(lat, long, date)
         result.onSuccess { prayerData ->
-            _uiState.value = HomeUiState.Success(prayerData, address)
+            // If address is null (from changeDate re-fetch), keep existing address if possible
+            // But simplify: pass address only on location update. Use current state's address if null.
+            val currentAddress = (uiState.value as? HomeUiState.Success)?.locationName ?: address ?: "Unknown Location"
+            _uiState.value = HomeUiState.Success(prayerData, currentAddress)
         }.onFailure { e ->
             _uiState.value = HomeUiState.Error(e.message ?: "Failed to fetch prayer times")
         }
@@ -152,14 +236,16 @@ class HomeViewModel(
             prefsRepository: PrefsRepository,
             prayerRepository: PrayerRepository,
             quranRepository: QuranRepository,
-            mosqueRepository: MosqueRepository
+            mosqueRepository: MosqueRepository,
+            prayerLogRepository: PrayerLogRepository
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 HomeViewModel(
                     prefsRepository, 
                     prayerRepository, 
                     quranRepository,
-                    mosqueRepository
+                    mosqueRepository,
+                    PrayerLogRepository()
                 )
             }
         }

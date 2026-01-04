@@ -16,14 +16,15 @@ class PrayerRepository {
         api = retrofit.create(PrayerTimeApi::class.java)
     }
 
-    suspend fun getPrayerTimes(lat: Double, long: Double): Result<PrayerData> {
+    suspend fun getPrayerTimes(lat: Double, long: Double, date: String? = null): Result<PrayerData> {
         return try {
             val response = api.getPrayerTimes(
                 latitude = lat,
                 longitude = long,
                 method = 20, // KEMENAG Indonesia
                 school = 1, // Syafi'i
-                apiKey = "E1Au0cBZHoQcnYvN5XhNHpQDUATmBFrB1tuxAnwBmv04PPHz"
+                apiKey = "E1Au0cBZHoQcnYvN5XhNHpQDUATmBFrB1tuxAnwBmv04PPHz",
+                date = date
             )
             if (response.code == 200 && response.data != null) {
                 Result.success(response.data)

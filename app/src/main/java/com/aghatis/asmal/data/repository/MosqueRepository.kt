@@ -23,7 +23,7 @@ class MosqueRepository(private val context: Context) {
 
     init {
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://overpass-api.de/api/interpreter/")
+            .baseUrl("https://overpass-api.de/api/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         api = retrofit.create(OverpassApi::class.java)

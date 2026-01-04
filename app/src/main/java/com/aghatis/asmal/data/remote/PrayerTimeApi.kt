@@ -11,6 +11,7 @@ interface PrayerTimeApi {
         @Query("lon") longitude: Double,
         @Query("method") method: Int,
         @Query("school") school: Int,
-        @Query("api_key") apiKey: String
+        @Query("api_key") apiKey: String,
+        @Query("date") date: String? = null
     ): PrayerTimeResponse
 }

@@ -58,6 +58,13 @@ object PrayerTimeUtils {
         return nextPrayer
     }
     
+    fun hasTimePassed(timeStr: String): Boolean {
+        val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+        val now = Calendar.getInstance()
+        val currentTimeStr = sdf.format(now.time)
+        return timeToMinutes(currentTimeStr) >= timeToMinutes(timeStr)
+    }
+
     private fun timeToMinutes(time: String): Int {
         val parts = time.split(":")
         if (parts.size != 2) return 0
