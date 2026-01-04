@@ -50,6 +50,15 @@ class QuranRepository(context: android.content.Context) {
         }
     }
 
+    suspend fun getAyah(surahNo: Int, ayahNo: Int): Result<AyahResponse> {
+        return try {
+            val response = api.getAyah(surahNo, ayahNo)
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getRandomAyah(): Result<AyahResponse> {
         return try {
             val surahNo = (1..114).random()

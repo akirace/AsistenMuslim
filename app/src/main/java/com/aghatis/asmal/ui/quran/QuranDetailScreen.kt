@@ -10,6 +10,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +41,14 @@ fun QuranDetailScreen(
         factory = QuranDetailViewModel.Factory(repository, surahNo)
     )
     val uiState by viewModel.uiState.collectAsState()
+    val audioState by viewModel.audioState.collectAsState()
+
+    // Handle audio error toasts
+    LaunchedEffect(audioState) {
+        if (audioState is AudioState.Error) {
+            android.widget.Toast.makeText(context, (audioState as AudioState.Error).message, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -51,7 +62,12 @@ fun QuranDetailScreen(
                 }
             }
             is QuranDetailUiState.Success -> {
-                SurahDetailContent(surah = state.surah)
+                SurahDetailContent(
+                    surah = state.surah,
+                    audioState = audioState,
+                    onPlayClick = { ayahNo -> viewModel.playAyahAudio(ayahNo) },
+                    onStopClick = { viewModel.stopAudio() }
+                )
             }
             is QuranDetailUiState.Error -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -79,7 +95,12 @@ fun QuranDetailScreen(
 }
 
 @Composable
-fun SurahDetailContent(surah: SurahDetailResponse) {
+fun SurahDetailContent(
+    surah: SurahDetailResponse,
+    audioState: AudioState,
+    onPlayClick: (Int) -> Unit,
+    onStopClick: () -> Unit
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp)
@@ -108,11 +129,21 @@ fun SurahDetailContent(surah: SurahDetailResponse) {
 
         // Ayah List
         itemsIndexed(surah.arabic1) { index, arabicText ->
+            val ayahNo = index + 1
             val englishText = surah.english.getOrElse(index) { "" }
+            
+            val isLoading = audioState is AudioState.Loading && audioState.ayahNo == ayahNo
+            val isPlaying = audioState is AudioState.Playing && audioState.ayahNo == ayahNo
+
             AyahItem(
-                number = index + 1,
+                number = ayahNo,
                 arabicText = arabicText,
-                englishText = englishText
+                englishText = englishText,
+                isLoading = isLoading,
+                isPlaying = isPlaying,
+                onPlayToggle = {
+                    if (isPlaying) onStopClick() else onPlayClick(ayahNo)
+                }
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -181,7 +212,10 @@ fun SurahHeaderCard(surah: SurahDetailResponse) {
 fun AyahItem(
     number: Int,
     arabicText: String,
-    englishText: String
+    englishText: String,
+    isLoading: Boolean,
+    isPlaying: Boolean,
+    onPlayToggle: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         // Ayah Header (Number and Actions)
@@ -213,8 +247,20 @@ fun AyahItem(
                 Spacer(modifier = Modifier.weight(1f))
 
                 // Action Icons
-                IconButton(onClick = { /* Play */ }) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = "Play", tint = MaterialTheme.colorScheme.primary)
+                IconButton(onClick = onPlayToggle) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Close else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "Stop" else "Play",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
                 IconButton(onClick = { /* Share */ }) {
                     Icon(Icons.Default.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.primary)

@@ -10,6 +10,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+import android.media.MediaPlayer
+
+sealed class AudioState {
+    object Idle : AudioState()
+    data class Loading(val ayahNo: Int) : AudioState()
+    data class Playing(val ayahNo: Int) : AudioState()
+    data class Error(val message: String) : AudioState()
+}
+
 sealed class QuranDetailUiState {
     object Loading : QuranDetailUiState()
     data class Success(val surah: SurahDetailResponse) : QuranDetailUiState()
@@ -23,6 +32,11 @@ class QuranDetailViewModel(
 
     private val _uiState = MutableStateFlow<QuranDetailUiState>(QuranDetailUiState.Loading)
     val uiState: StateFlow<QuranDetailUiState> = _uiState.asStateFlow()
+
+    private val _audioState = MutableStateFlow<AudioState>(AudioState.Idle)
+    val audioState: StateFlow<AudioState> = _audioState.asStateFlow()
+
+    private var mediaPlayer: MediaPlayer? = null
 
     init {
         loadSurahDetail()
@@ -39,6 +53,68 @@ class QuranDetailViewModel(
                     _uiState.value = QuranDetailUiState.Error(error.message ?: "Unknown Error")
                 }
         }
+    }
+
+    fun playAyahAudio(ayahNo: Int) {
+        // Stop currently playing
+        mediaPlayer?.let {
+            if (it.isPlaying) {
+                it.stop()
+            }
+            it.release()
+        }
+        mediaPlayer = null
+
+        viewModelScope.launch {
+            _audioState.value = AudioState.Loading(ayahNo)
+            repository.getAyah(surahNo, ayahNo)
+                .onSuccess { ayah ->
+                    val url = ayah.audio["1"]?.url // Using Mishary Rashid as default
+                    if (url != null) {
+                        try {
+                            mediaPlayer = MediaPlayer().apply {
+                                setDataSource(url)
+                                setOnPreparedListener {
+                                    start()
+                                    _audioState.value = AudioState.Playing(ayahNo)
+                                }
+                                setOnCompletionListener {
+                                    _audioState.value = AudioState.Idle
+                                }
+                                setOnErrorListener { _, _, _ ->
+                                    _audioState.value = AudioState.Error("Failed to play audio")
+                                    false
+                                }
+                                prepareAsync()
+                            }
+                        } catch (e: Exception) {
+                            _audioState.value = AudioState.Error(e.message ?: "Player Error")
+                        }
+                    } else {
+                        _audioState.value = AudioState.Error("Audio URL not found")
+                    }
+                }
+                .onFailure { error ->
+                    _audioState.value = AudioState.Error(error.message ?: "Failed to fetch Ayah")
+                }
+        }
+    }
+
+    fun stopAudio() {
+        mediaPlayer?.let {
+            if (it.isPlaying) {
+                it.stop()
+            }
+            it.release()
+        }
+        mediaPlayer = null
+        _audioState.value = AudioState.Idle
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        mediaPlayer?.release()
+        mediaPlayer = null
     }
 
     class Factory(
