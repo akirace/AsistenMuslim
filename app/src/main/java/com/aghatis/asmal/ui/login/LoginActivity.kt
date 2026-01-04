@@ -59,6 +59,9 @@ import com.aghatis.asmal.data.repository.PrefsRepository
 import com.aghatis.asmal.ui.menu.MenuActivity
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.aghatis.asmal.ui.theme.AsistenAmalMuslimTheme
+import com.aghatis.asmal.data.model.AppTheme
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -76,9 +79,12 @@ class LoginActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            LoginScreen(viewModel = viewModel, onGoogleSignIn = {
-                initiateGoogleSignIn()
-            })
+            val selectedTheme by prefsRepository.selectedTheme.collectAsState(initial = AppTheme.MATERIAL_YOU)
+            AsistenAmalMuslimTheme(theme = selectedTheme) {
+                LoginScreen(viewModel = viewModel, onGoogleSignIn = {
+                    initiateGoogleSignIn()
+                })
+            }
         }
     }
 
@@ -142,14 +148,11 @@ class LoginActivity : ComponentActivity() {
             }
         }
 
-        // Islamic Theme Colors
-        val darkGreen = Color(0xFF0F3D3E)
-        val teal = Color(0xFF1FAB89)
-        val lightTeal = Color(0xFFD2F5E3)
-        val gold = Color(0xFFFFD700)
-
         val gradientBrush = Brush.verticalGradient(
-            colors = listOf(darkGreen, teal),
+            colors = listOf(
+                MaterialTheme.colorScheme.primary,
+                MaterialTheme.colorScheme.secondary
+            ),
             startY = 0f,
             endY = Float.POSITIVE_INFINITY
         )
@@ -207,7 +210,7 @@ class LoginActivity : ComponentActivity() {
                             Text(
                                 text = "Selamat Datang di AsistenMuslim",
                                 style = MaterialTheme.typography.bodyLarge.copy(
-                                    color = lightTeal
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
                                 ),
                                 textAlign = TextAlign.Center
                             )
@@ -227,7 +230,7 @@ class LoginActivity : ComponentActivity() {
                             when (uiState) {
                                 is LoginUiState.Loading -> {
                                     CircularProgressIndicator(
-                                        color = gold,
+                                        color = MaterialTheme.colorScheme.tertiary,
                                         modifier = Modifier.size(48.dp)
                                     )
                                 }

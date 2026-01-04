@@ -5,6 +5,9 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -266,12 +269,12 @@ fun NearestMosqueSection(mosques: List<Mosque>, onMosqueClick: (Mosque) -> Unit)
     if (mosques.isEmpty()) {
         Card(
              modifier = Modifier.fillMaxWidth(),
-             colors = CardDefaults.cardColors(containerColor = Color.White),
+             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
              elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
              shape = RoundedCornerShape(20.dp)
         ) {
              Box(modifier = Modifier.padding(20.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                 Text("Tidak ada masjid ditemukan di sekitar.", color = Color.Gray)
+                 Text("Tidak ada masjid ditemukan di sekitar.", color = MaterialTheme.colorScheme.onSurfaceVariant)
              }
         }
     } else {
@@ -296,7 +299,7 @@ fun MosqueItemCard(mosque: Mosque, onClick: () -> Unit) {
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp), // Initial elevation
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
             modifier = Modifier
@@ -338,7 +341,7 @@ fun MosqueItemCard(mosque: Mosque, onClick: () -> Unit) {
                         Icon(
                             imageVector = Icons.Filled.LocationOn,
                             contentDescription = "Distance",
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onSecondary,
                             modifier = Modifier.size(12.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -348,7 +351,7 @@ fun MosqueItemCard(mosque: Mosque, onClick: () -> Unit) {
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 10.sp
                             ),
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSecondary
                         )
                     }
                 }
@@ -363,7 +366,7 @@ fun MosqueItemCard(mosque: Mosque, onClick: () -> Unit) {
                         fontSize = 16.sp,
                         letterSpacing = 0.5.sp
                     ),
-                    color = Color.Black, // Darker text for better readability
+                    color = MaterialTheme.colorScheme.onSurface, // Darker text for better readability
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
@@ -374,7 +377,7 @@ fun MosqueItemCard(mosque: Mosque, onClick: () -> Unit) {
                      Icon(
                          imageVector = Icons.Filled.Info, // Placeholder for address icon or just use text
                          contentDescription = null, // decorative
-                         tint = Color.Gray,
+                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                          modifier = Modifier.size(12.dp) 
                      )
                      Spacer(modifier = Modifier.width(4.dp))
@@ -384,7 +387,7 @@ fun MosqueItemCard(mosque: Mosque, onClick: () -> Unit) {
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         ),
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                      )
@@ -423,7 +426,7 @@ fun TodayAyahCard(ayah: AyahResponse) {
             .fillMaxWidth()
             .animateContentSize(spring(stiffness = Spring.StiffnessLow)),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -441,19 +444,19 @@ fun TodayAyahCard(ayah: AyahResponse) {
                      Text(
                          text = "${ayah.surahName} : ${ayah.ayahNo}",
                          style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                         color = Color.DarkGray
+                         color = MaterialTheme.colorScheme.onSurface
                      )
                      Text(
                          text = ayah.surahNameTranslation,
                          style = MaterialTheme.typography.bodySmall,
-                         color = Color.Gray
+                         color = MaterialTheme.colorScheme.onSurfaceVariant
                      )
                  }
                  
                  Icon(
                      imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                      contentDescription = "Expand",
-                     tint = Color.Gray
+                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                  )
             }
             
@@ -466,7 +469,7 @@ fun TodayAyahCard(ayah: AyahResponse) {
                      fontWeight = FontWeight.SemiBold,
                      fontFamily = androidx.compose.ui.text.font.FontFamily.Default // Or generic sans serif if Arabic font issues
                  ),
-                 color = Color.Black,
+                 color = MaterialTheme.colorScheme.onSurface,
                  modifier = Modifier.fillMaxWidth(),
                  textAlign = androidx.compose.ui.text.style.TextAlign.End
              )
@@ -479,12 +482,12 @@ fun TodayAyahCard(ayah: AyahResponse) {
                  style = MaterialTheme.typography.bodyMedium.copy(
                      fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                  ),
-                 color = Color.DarkGray
+                 color = MaterialTheme.colorScheme.onSurfaceVariant
              )
 
             if (expanded) {
                 Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
+                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 // Audio Player
@@ -528,7 +531,7 @@ fun TodayAyahCard(ayah: AyahResponse) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Filled.Close else Icons.Filled.PlayArrow,
                             contentDescription = if (isPlaying) "Stop" else "Play",
-                            tint = Color.White
+                            tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                     
@@ -537,7 +540,7 @@ fun TodayAyahCard(ayah: AyahResponse) {
                     Text(
                         text = if (isPlaying) "Playing Recitation..." else "Play Audio (Mishary Rashid)",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -550,38 +553,57 @@ fun screenPadding() = PaddingValues(horizontal = 24.dp, vertical = 24.dp)
 
 @Composable
 fun WelcomeHeader(userName: String?, photoUrl: String?) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        visible = true
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + slideInVertically(initialOffsetY = { -40 })
     ) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(Color.LightGray.copy(alpha = 0.3f))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-             AsyncImage(
-                model = photoUrl ?: "https://ui-avatars.com/api/?name=${userName ?: "User"}&background=random",
-                contentDescription = "Profile Picture",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        }
-        
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(
-                text = "Assalamu'alaikum,",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
-            )
-            Text(
-                text = userName ?: "Saudaraku",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold, 
-                    fontSize = 18.sp
-                )
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                ) {
+                     AsyncImage(
+                        model = photoUrl ?: "https://ui-avatars.com/api/?name=${userName ?: "User"}&background=random",
+                        contentDescription = "Profile Picture",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = "Assalamu'alaikum,",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = userName ?: "Saudaraku",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold, 
+                            fontSize = 18.sp
+                        )
+                    )
+                }
+            }
         }
     }
 }
@@ -626,7 +648,7 @@ fun ErrorCard(message: String, onRefresh: (() -> Unit)? = null) {
 fun PrayerTimesCard(prayerData: PrayerData, locationName: String) {
     var expanded by remember { mutableStateOf(false) }
     val nextPrayer = remember(prayerData) { PrayerTimeUtils.getNextPrayer(prayerData.times) }
-    val cardBgColor = Color(0xFFF5F7FA) // Very light gray/blue
+    val cardBgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) // Subtle background
     val activeColor = MaterialTheme.colorScheme.primary // Brand color
 
     Card(
@@ -657,12 +679,12 @@ fun PrayerTimesCard(prayerData: PrayerData, locationName: String) {
                     Text(
                         text = "Lokasi: $locationName",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = prayerData.date.readable,
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                        color = Color.DarkGray
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                  }
                  
@@ -670,7 +692,7 @@ fun PrayerTimesCard(prayerData: PrayerData, locationName: String) {
                      Icon(
                          imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                          contentDescription = "Toggle",
-                         tint = Color.Gray
+                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                      )
                  }
             }
@@ -687,7 +709,7 @@ fun PrayerTimesCard(prayerData: PrayerData, locationName: String) {
                         Text(
                             text = "Menuju Sholat",
                             style = MaterialTheme.typography.labelMedium,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         DisplayTimeBig(name, time, activeColor)
                     }
@@ -726,7 +748,7 @@ fun DisplayTimeBig(name: String, time: String, activeColor: Color) {
         Text(
             text = name,
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-            color = Color.DarkGray
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             text = time,
@@ -739,7 +761,7 @@ fun DisplayTimeBig(name: String, time: String, activeColor: Color) {
 @Composable
 fun PrayerItemRow(name: String, time: String, isNext: Boolean, activeColor: Color) {
     val bgColor = if (isNext) activeColor.copy(alpha = 0.1f) else Color.Transparent
-    val textColor = if (isNext) activeColor else Color.DarkGray
+    val textColor = if (isNext) activeColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
     val weight = if (isNext) FontWeight.Bold else FontWeight.Medium
     
     Row(
@@ -793,7 +815,7 @@ fun PrayerChecklistCard(
             .fillMaxWidth()
             .animateContentSize(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -809,7 +831,7 @@ fun PrayerChecklistCard(
                     Text(
                         text = "Tracker Ibadah",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color.DarkGray
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     if (!expanded && nextPrayerPair != null) {
                         Text(
@@ -822,13 +844,13 @@ fun PrayerChecklistCard(
                 Icon(
                     imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                     contentDescription = "Expand",
-                    tint = Color.Gray
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             if (expanded) {
                 Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 if (prayerData == null) {
@@ -861,7 +883,7 @@ fun PrayerChecklistCard(
                         }
                         
                         // Styling for state
-                        val textColor = if (isTimePassed) Color.DarkGray else Color.Gray.copy(alpha = 0.6f)
+                        val textColor = if (isTimePassed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         val checkEnabled = isTimePassed
                         
                         Row(
@@ -887,7 +909,7 @@ fun PrayerChecklistCard(
                                 Text(
                                     text = time,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = if (isTimePassed) Color.Gray else Color.Gray.copy(alpha = 0.4f)
+                                    color = if (isTimePassed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                                 )
                             }
                             
@@ -903,14 +925,12 @@ fun PrayerChecklistCard(
                                 enabled = true, // We handle "enabled" logic manually to allow click for Toast
                                 colors = CheckboxDefaults.colors(
                                     checkedColor = MaterialTheme.colorScheme.primary,
-                                    uncheckedColor = if (isTimePassed) Color.Gray else Color.LightGray.copy(alpha = 0.4f),
-                                    disabledCheckedColor = Color.LightGray,
-                                    disabledUncheckedColor = Color.LightGray.copy(alpha = 0.2f)
+                                    uncheckedColor = if (isTimePassed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                                 )
                             )
                         }
                         if (index < prayers.lastIndex) {
-                            HorizontalDivider(color = Color.LightGray.copy(alpha = 0.2f))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                         }
                     }
                 }
@@ -939,7 +959,7 @@ fun DailyProgressCard(
     Card(
         modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -952,7 +972,7 @@ fun DailyProgressCard(
             Text(
                 text = "Progress Sholat",
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(16.dp))
             
@@ -1039,6 +1059,7 @@ fun DateNavigatorCard(
             
             Pair(dayFormat.format(dateObj), dateFormat.format(dateObj))
         } catch (e: Exception) {
+
             Pair(date, "")
         }
     }
@@ -1046,7 +1067,7 @@ fun DateNavigatorCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -1059,7 +1080,7 @@ fun DateNavigatorCard(
              Text(
                 text = "Tanggal",
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(16.dp))
             
@@ -1068,12 +1089,12 @@ fun DateNavigatorCard(
                 Text(
                     text = dateComponents.first, // Day Name
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = dateComponents.second, // Date
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color.DarkGray
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
             
@@ -1155,23 +1176,23 @@ fun PrayerProgressDetailDialog(
                             Text(
                                 text = name,
                                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                                color = Color.DarkGray
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = time,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         
                         Icon(
                             imageVector = if (isDone) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle, // Use a hollow circle logic if needed, but standard Outline check is fine or just a gray circle
                             contentDescription = if (isDone) "Completed" else "Not Completed",
-                            tint = if (isDone) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.3f),
+                            tint = if (isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                             modifier = Modifier.size(24.dp)
                         )
                     }
-                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.2f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                 }
             }
         },
@@ -1180,7 +1201,7 @@ fun PrayerProgressDetailDialog(
                 Text("Tutup")
             }
         },
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(16.dp)
     )
 }

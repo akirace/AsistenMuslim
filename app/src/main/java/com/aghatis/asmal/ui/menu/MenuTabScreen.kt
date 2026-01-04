@@ -1,5 +1,9 @@
 package com.aghatis.asmal.ui.menu
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,7 +20,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,8 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.aghatis.asmal.ui.theme.DarkGreen
-import com.aghatis.asmal.ui.theme.Teal
+import kotlinx.coroutines.delay
 
 data class MenuItem(
     val title: String,
@@ -40,53 +43,70 @@ data class MenuItem(
 @Composable
 fun MenuTabScreen() {
     val menuItems = listOf(
-        MenuItem("Al-Qur'an", Icons.Filled.Star, Teal), // Star for Guidance
-        MenuItem("How to Pray", Icons.Filled.Person, Color(0xFFE91E63)), // Person for Body/Posture
-        MenuItem("Qibla", Icons.Filled.LocationOn, Color(0xFFFF9800)), // Location for Direction
-        MenuItem("Dzikir", Icons.Filled.Favorite, Color(0xFF9C27B0)), // Heart for Soul
-        MenuItem("Doa", Icons.Filled.CheckCircle, Color(0xFF2196F3)), // Check for Granting
-        MenuItem("Hadith", Icons.Filled.Info, Color(0xFF009688)) // Info for Knowledge
+        MenuItem("Al-Qur'an", Icons.Filled.Star, MaterialTheme.colorScheme.primary),
+        MenuItem("How to Pray", Icons.Filled.Person, MaterialTheme.colorScheme.secondary),
+        MenuItem("Qibla", Icons.Filled.LocationOn, MaterialTheme.colorScheme.tertiary),
+        MenuItem("Dzikir", Icons.Filled.Favorite, MaterialTheme.colorScheme.error), // Just an example mapping, better to stick to distinct colors or custom theme attributes if available
+        MenuItem("Doa", Icons.Filled.CheckCircle, MaterialTheme.colorScheme.primary),
+        MenuItem("Hadith", Icons.Filled.Info, MaterialTheme.colorScheme.secondary)
     )
+    
+     // Animation State
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        visible = true
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF9F9F9)) // Very light gray background
-            .padding(24.dp)
+            .background(MaterialTheme.colorScheme.background)
+            .padding(16.dp)
     ) {
-        // Section 1: Intro / Guidance
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 24.dp, bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        // Section 1: Feature Info Card with Animation
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { -40 }) + scaleIn()
         ) {
-            Text(
-                text = "Lengkapi Ibadahmu",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = DarkGreen
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 ),
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Temukan kedamaian hati dan kemudahan dalam mendekatkan diri kepada Sang Pencipta melalui fitur-fitur pilihan ini.",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    lineHeight = 22.sp
-                ),
-                color = Color.Gray,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Lengkapi Ibadahmu",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Temukan kedamaian hati dan kemudahan dalam mendekatkan diri kepada Sang Pencipta melalui fitur-fitur pilihan ini.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
         }
 
         // Section 2: Main Menu Grid
         LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 100.dp) // Space for bottom nav
+            columns = GridCells.Fixed(3),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 100.dp) 
         ) {
             items(menuItems) { item ->
                 MenuGridItem(item = item)
@@ -100,16 +120,16 @@ fun MenuGridItem(item: MenuItem) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(1.2f) // Slightly rectangular
+            .aspectRatio(1f)
             .clickable { /* Handle click */ },
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(8.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -117,29 +137,29 @@ fun MenuGridItem(item: MenuItem) {
             Surface(
                 shape = CircleShape,
                 color = item.color.copy(alpha = 0.1f),
-                modifier = Modifier.size(56.dp)
+                modifier = Modifier.size(48.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = item.icon,
                         contentDescription = item.title,
                         tint = item.color,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
             Text(
                 text = item.title,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Medium
                 ),
-                color = Color.DarkGray, // Dark text
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
-                maxLines = 1
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
     }

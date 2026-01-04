@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -28,7 +29,7 @@ import com.aghatis.asmal.data.repository.AuthRepository
 import com.aghatis.asmal.data.repository.PrefsRepository
 
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(onNavigateToSettings: () -> Unit) {
     val context = LocalContext.current
     val authRepository = AuthRepository(context)
     val prefsRepository = PrefsRepository(context)
@@ -73,12 +74,12 @@ fun ProfileScreen() {
                 fontWeight = FontWeight.Bold
             ),
             textAlign = TextAlign.Center,
-            color = Color.Black
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             text = "Assalamu'alaikum",
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
 
@@ -88,7 +89,7 @@ fun ProfileScreen() {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -97,13 +98,35 @@ fun ProfileScreen() {
                     label = "Email",
                     value = user?.email ?: "-"
                 )
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = Color.LightGray)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
                 ProfileInfoRow(
                     icon = Icons.Default.Person,
                     label = "User ID",
                     value = user?.id ?: "-"
                 )
             }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Settings Button
+        OutlinedButton(
+            onClick = onNavigateToSettings,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Pengaturan",
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Pengaturan",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            )
         }
 
         Spacer(modifier = Modifier.weight(1f)) // Push logout to bottom
@@ -157,12 +180,12 @@ fun ProfileInfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label:
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = value,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                color = Color.DarkGray
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }

@@ -11,17 +11,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import com.aghatis.asmal.ui.theme.AsistenAmalMuslimTheme
+import com.aghatis.asmal.data.model.AppTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.aghatis.asmal.data.repository.AuthRepository
 import com.aghatis.asmal.data.repository.PrefsRepository
 import com.aghatis.asmal.ui.login.LoginActivity
 
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.aghatis.asmal.ui.components.CustomBottomNavigation
 import com.aghatis.asmal.ui.navigation.BottomNavGraph
@@ -38,7 +37,10 @@ class MenuActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MenuScreen(viewModel = viewModel)
+            val selectedTheme by prefsRepository.selectedTheme.collectAsState(initial = AppTheme.MATERIAL_YOU)
+            AsistenAmalMuslimTheme(theme = selectedTheme) {
+                MenuScreen(viewModel = viewModel)
+            }
         }
     }
 
@@ -47,6 +49,9 @@ class MenuActivity : ComponentActivity() {
     fun MenuScreen(viewModel: MenuViewModel) {
         val uiState by viewModel.uiState.collectAsState()
         val navController = rememberNavController()
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = navBackStackEntry?.destination?.route
+        val showBottomBar = currentRoute != "settings"
 
         LaunchedEffect(uiState) {
             if (uiState is MenuUiState.LoggedOut) {
@@ -57,7 +62,9 @@ class MenuActivity : ComponentActivity() {
 
         Scaffold(
             bottomBar = {
-                CustomBottomNavigation(navController = navController)
+                if (showBottomBar) {
+                    CustomBottomNavigation(navController = navController)
+                }
             }
         ) { innerPadding ->
             Box(

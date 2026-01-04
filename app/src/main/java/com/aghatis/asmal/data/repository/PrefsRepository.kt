@@ -8,6 +8,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.aghatis.asmal.data.model.User
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import com.aghatis.asmal.data.model.AppTheme
+
 
 private val Context.dataStore by preferencesDataStore(name = "user_prefs")
 
@@ -19,6 +21,7 @@ class PrefsRepository(private val context: Context) {
         private val KEY_DISPLAY_NAME = stringPreferencesKey("display_name")
         private val KEY_EMAIL = stringPreferencesKey("email")
         private val KEY_PHOTO_URL = stringPreferencesKey("photo_url")
+        private val KEY_THEME = stringPreferencesKey("app_theme")
     }
 
     val isLoggedIn: Flow<Boolean> = context.dataStore.data.map { preferences ->
@@ -51,6 +54,20 @@ class PrefsRepository(private val context: Context) {
     suspend fun clearSession() {
         context.dataStore.edit { preferences ->
             preferences.clear()
+        }
+    }
+    val selectedTheme: Flow<AppTheme> = context.dataStore.data.map { preferences ->
+        val themeName = preferences[KEY_THEME] ?: AppTheme.MATERIAL_YOU.name
+        try {
+            AppTheme.valueOf(themeName)
+        } catch (e: Exception) {
+            AppTheme.MATERIAL_YOU
+        }
+    }
+
+    suspend fun saveTheme(theme: AppTheme) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_THEME] = theme.name
         }
     }
 }

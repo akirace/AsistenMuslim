@@ -10,6 +10,7 @@ import com.aghatis.asmal.ui.components.BottomNavItem
 import com.aghatis.asmal.ui.home.HomeScreen
 import com.aghatis.asmal.ui.menu.MenuTabScreen
 import com.aghatis.asmal.ui.profile.ProfileScreen
+import com.aghatis.asmal.ui.profile.SettingScreen
 
 @Composable
 fun BottomNavGraph(navController: NavHostController) {
@@ -27,7 +28,10 @@ fun BottomNavGraph(navController: NavHostController) {
             AssistantScreen()
         }
         composable(BottomNavItem.Profile.route) {
-            ProfileScreen()
+            ProfileScreen(onNavigateToSettings = { navController.navigate("settings") })
+        }
+        composable("settings") {
+            SettingScreen(onNavigateBack = { navController.popBackStack() })
         }
     }
 }
