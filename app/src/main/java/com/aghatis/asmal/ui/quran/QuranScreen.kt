@@ -8,9 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.SecondaryIndicator
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -40,6 +38,7 @@ fun QuranScreen(
     val repository = remember { QuranRepository(context) }
     val viewModel: QuranViewModel = viewModel(factory = QuranViewModel.Factory(repository))
     val uiState by viewModel.uiState.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
 
     val tabs = listOf("Qur'an", "Qur'an Audio", "Baca")
     val pagerState = androidx.compose.foundation.pager.rememberPagerState { tabs.size }
@@ -90,6 +89,8 @@ fun QuranScreen(
             when (page) {
                 0 -> SurahListContent(
                     uiState = uiState,
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = { viewModel.onSearchQueryChange(it) },
                     onSurahClick = { surahNo ->
                         navController.navigate("quran_detail/$surahNo")
                     }
@@ -104,36 +105,77 @@ fun QuranScreen(
 @Composable
 fun SurahListContent(
     uiState: QuranUiState,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     onSurahClick: (Int) -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        when (val state = uiState) {
-            is QuranUiState.Loading -> {
-                LazyColumn(contentPadding = PaddingValues(16.dp)) {
-                    items(10) {
-                        ShimmerSurahItem()
-                        Spacer(modifier = Modifier.height(16.dp))
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Search Bar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            placeholder = { Text("Cari surah atau nomor...", style = MaterialTheme.typography.bodyMedium) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { onSearchQueryChange("") }) {
+                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-            }
-            is QuranUiState.Success -> {
-                LazyColumn(contentPadding = PaddingValues(16.dp)) {
-                    items(state.surahs) { surah ->
-                        SurahItem(
-                            surah = surah,
-                            onClick = { onSurahClick(surah.surahNo) }
+            },
+            shape = RoundedCornerShape(16.dp),
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+            ),
+            textStyle = MaterialTheme.typography.bodyMedium
+        )
+
+        Box(modifier = Modifier.weight(1f)) {
+            when (val state = uiState) {
+                is QuranUiState.Loading -> {
+                    LazyColumn(contentPadding = PaddingValues(bottom = 16.dp, start = 16.dp, end = 16.dp)) {
+                        items(10) {
+                            ShimmerSurahItem()
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
+                }
+                is QuranUiState.Success -> {
+                    if (state.surahs.isEmpty() && searchQuery.isNotEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                "Surah tidak ditemukan",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    } else {
+                        LazyColumn(contentPadding = PaddingValues(bottom = 16.dp, start = 16.dp, end = 16.dp)) {
+                            items(state.surahs) { surah ->
+                                SurahItem(
+                                    surah = surah,
+                                    onClick = { onSurahClick(surah.surahNo) }
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+                        }
+                    }
+                }
+                is QuranUiState.Error -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "Error: ${state.message}",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyLarge
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
                     }
-                }
-            }
-            is QuranUiState.Error -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "Error: ${state.message}",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
                 }
             }
         }
