@@ -18,20 +18,13 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.filled.Info 
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.filled.WbTwilight
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.WbCloudy
+import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.* 
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -54,6 +47,9 @@ import com.aghatis.asmal.data.repository.PrayerRepository
 import com.aghatis.asmal.data.repository.PrefsRepository
 import com.aghatis.asmal.utils.PrayerTimeUtils
 import android.media.MediaPlayer
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
 import com.aghatis.asmal.data.model.AyahResponse
 import com.aghatis.asmal.data.repository.Mosque
 import com.aghatis.asmal.data.repository.QuranRepository
@@ -105,637 +101,340 @@ fun HomeScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(screenPadding())
             .verticalScroll(rememberScrollState()) // Allow scrolling
     ) {
-        // 1. Welcome Section
-        WelcomeHeader(userName = user?.displayName, photoUrl = user?.photoUrl)
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // 2. Prayer Time Section
-        Text(
-            text = "Jadwal Sholat",
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = 22.sp
-            )
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        when (val state = uiState) {
-            is HomeUiState.Loading -> {
-                Box(modifier = Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
-            }
-            is HomeUiState.Error -> {
-                ErrorCard(
-                    message = "Ada kendala di third party nya, silahkan coba lagi",
-                    onRefresh = { viewModel.fetchPrayerTimesWithLocation(context) }
-                )
-            }
-            is HomeUiState.Success -> {
-                PrayerTimesCard(prayerData = state.prayerData, locationName = state.locationName)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        // Progress and Date Navigator Section
-        var showProgressDialog by remember { mutableStateOf(false) }
-        
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min), // Enforce equal height
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            DailyProgressCard(
-                prayerLog = prayerLog,
-                onClick = { showProgressDialog = true },
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-            )
-            DateNavigatorCard(
-                date = selectedDate,
-                onPrevious = { viewModel.changeDate(-1) },
-                onNext = { viewModel.changeDate(1) },
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-            )
-        }
-        
-        if (showProgressDialog) {
-             val currentPrayerData = (uiState as? HomeUiState.Success)?.prayerData
-             PrayerProgressDetailDialog(
-                 prayerLog = prayerLog,
-                 prayerData = currentPrayerData,
-                 onDismiss = { showProgressDialog = false }
-             )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        // Prayer Checklist Section
+        // 1. New Home Header Section (Includes Greeting, Clock, and Prayer Times)
         val currentPrayerData = (uiState as? HomeUiState.Success)?.prayerData
-        PrayerChecklistCard(
-            prayerLog = prayerLog,
+        val currentLocationName = (uiState as? HomeUiState.Success)?.locationName
+        HomeHeaderSection(
+            userName = user?.displayName,
+            photoUrl = user?.photoUrl,
             prayerData = currentPrayerData,
-            selectedDate = selectedDate,
-            onToggle = { prayer, isChecked ->
-                viewModel.togglePrayerStatus(prayer, isChecked)
-            }
+            locationName = currentLocationName
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // 3. Today Ayah Section
-        Text(
-            text = "Ayat Hari Ini",
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = 22.sp
-            )
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        when (val state = ayahState) {
-             is AyahUiState.Loading -> {
-                 Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                 }
-             }
-             is AyahUiState.Error -> {
-                 ErrorCard(message = "Gagal memuat ayat hari ini: ${state.message}")
-             }
-             is AyahUiState.Success -> {
-                 TodayAyahCard(ayah = state.ayah)
-             }
-        }
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        // 4. Nearest Mosque Section (Third Feature Section)
-        Text(
-            text = "Masjid Terdekat",
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = 22.sp
-            )
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        when (val state = mosqueState) {
-            is MosqueUiState.Loading -> {
-                 Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                     CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                 }
-            }
-            is MosqueUiState.Error -> {
-                ErrorCard(
-                    message = "Ada kendala di third party nya, silahkan coba lagi",
-                    onRefresh = { viewModel.fetchPrayerTimesWithLocation(context) }
+        Column(modifier = Modifier.padding(screenPadding())) {
+             // Progress and Date Navigator Section
+            var showProgressDialog by remember { mutableStateOf(false) }
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min), // Enforce equal height
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                DailyProgressCard(
+                    prayerLog = prayerLog,
+                    onClick = { showProgressDialog = true },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                )
+                DateNavigatorCard(
+                    date = selectedDate,
+                    onPrevious = { viewModel.changeDate(-1) },
+                    onNext = { viewModel.changeDate(1) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
                 )
             }
-            is MosqueUiState.Success -> {
-                 NearestMosqueSection(mosques = state.mosques) { mosque ->
-                     val gmmIntentUri = android.net.Uri.parse("google.navigation:q=${mosque.lat},${mosque.lon}")
-                     val mapIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, gmmIntentUri)
-                     mapIntent.setPackage("com.google.android.apps.maps")
-                     
-                     // Verify if the intent can be resolved
-                     // Since standard Android often has maps, we try. If null, maybe open in browser.
-                     try {
-                         context.startActivity(mapIntent)
-                     } catch (e: Exception) {
-                         // Fallback to browser
-                         val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${mosque.lat},${mosque.lon}"))
-                         context.startActivity(browserIntent)
+            
+            if (showProgressDialog) {
+                 val currentPrayerData = (uiState as? HomeUiState.Success)?.prayerData
+                 PrayerProgressDetailDialog(
+                     prayerLog = prayerLog,
+                     prayerData = currentPrayerData,
+                     onDismiss = { showProgressDialog = false }
+                 )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Prayer Checklist Section
+            PrayerChecklistCard(
+                prayerLog = prayerLog,
+                prayerData = currentPrayerData,
+                selectedDate = selectedDate,
+                onToggle = { prayer, isChecked ->
+                    viewModel.togglePrayerStatus(prayer, isChecked)
+                }
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 3. Today Ayah Section
+            Text(
+                text = "Ayat Hari Ini",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp
+                )
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            when (val state = ayahState) {
+                 is AyahUiState.Loading -> {
+                     Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                         CircularProgressIndicator(modifier = Modifier.size(24.dp))
                      }
                  }
+                 is AyahUiState.Error -> {
+                     ErrorCard(message = "Gagal memuat ayat hari ini: ${state.message}")
+                 }
+                 is AyahUiState.Success -> {
+                     TodayAyahCard(ayah = state.ayah)
+                 }
             }
-        }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // 4. Nearest Mosque Section (Third Feature Section)
+            Text(
+                text = "Masjid Terdekat",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp
+                )
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            when (val state = mosqueState) {
+                is MosqueUiState.Loading -> {
+                     Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                         CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                     }
+                }
+                is MosqueUiState.Error -> {
+                    ErrorCard(
+                        message = "Ada kendala di third party nya, silahkan coba lagi",
+                        onRefresh = { viewModel.fetchPrayerTimesWithLocation(context) }
+                    )
+                }
+                is MosqueUiState.Success -> {
+                     NearestMosqueSection(mosques = state.mosques) { mosque ->
+                         val gmmIntentUri = android.net.Uri.parse("google.navigation:q=${mosque.lat},${mosque.lon}")
+                         val mapIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, gmmIntentUri)
+                         mapIntent.setPackage("com.google.android.apps.maps")
+                         
+                         // Verify if the intent can be resolved
+                         // Since standard Android often has maps, we try. If null, maybe open in browser.
+                         try {
+                             context.startActivity(mapIntent)
+                         } catch (e: Exception) {
+                             // Fallback to browser
+                             val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${mosque.lat},${mosque.lon}"))
+                             context.startActivity(browserIntent)
+                         }
+                     }
+                }
+            }
 
-        // Add extra spacer for bottom navigation overlap prevention
-        Spacer(modifier = Modifier.height(100.dp))
+            // Add extra spacer for bottom navigation overlap prevention
+            Spacer(modifier = Modifier.height(100.dp))
+        }
     }
 }
 
 @Composable
-fun NearestMosqueSection(mosques: List<Mosque>, onMosqueClick: (Mosque) -> Unit) {
-    if (mosques.isEmpty()) {
-        Card(
-             modifier = Modifier.fillMaxWidth(),
-             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-             shape = RoundedCornerShape(20.dp)
-        ) {
-             Box(modifier = Modifier.padding(20.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                 Text("Tidak ada masjid ditemukan di sekitar.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-             }
-        }
-    } else {
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            items(mosques.take(10)) { mosque ->
-                MosqueItemCard(mosque = mosque, onClick = { onMosqueClick(mosque) })
-            }
+fun HomeHeaderSection(
+    userName: String?,
+    photoUrl: String?,
+    prayerData: PrayerData?,
+    locationName: String?
+) {
+    // Background Image URL
+    val bgImage = "https://api.aghatis.id/uploads/masjid_background_84c945e1cc.png"
+
+    // Current Time State
+    var currentTime by remember { mutableStateOf(java.util.Calendar.getInstance()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = java.util.Calendar.getInstance()
+            kotlinx.coroutines.delay(1000L) // Update every second
         }
     }
-}
+    
+    val timeFormat = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+    val timeString = timeFormat.format(currentTime.time)
+    
+    // Determine next prayer
+    val nextPrayerPair = remember(prayerData) {
+        prayerData?.let { PrayerTimeUtils.getNextPrayer(it.times) }
+    }
 
-@Composable
-fun MosqueItemCard(mosque: Mosque, onClick: () -> Unit) {
-    Card(
+    Box(
         modifier = Modifier
-            .width(240.dp)
-            .height(140.dp) // Fixed height for uniformity
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp), // Initial elevation
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
+            .background(Color.Black) // Fallback color
     ) {
+        // Background Image with Caching (handled by Coil default)
+        AsyncImage(
+            model = androidx.compose.ui.platform.LocalContext.current.let { context ->
+                coil.request.ImageRequest.Builder(context)
+                    .data(bgImage)
+                    .crossfade(true)
+                    .build()
+            },
+            contentDescription = "Mosque Background",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.matchParentSize()
+        )
+        
+        // Dark Overlay for readability
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(Color.Black.copy(alpha = 0.6f))
+        )
+
+        // Content
         Column(
             modifier = Modifier
-                .padding(12.dp)
-                .fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
+                .fillMaxWidth()
+                .padding(bottom = 32.dp) // Maintain bottom padding for content
+                .padding(top = 48.dp, start = 24.dp, end = 24.dp)
         ) {
-            // Top Row: Icon + Distance
+            // Top Row: Greeting + Avatar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Icon Container
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Filled.Place,
-                            contentDescription = "Mosque",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                // Distance Badge
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.secondary,
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.LocationOn,
-                            contentDescription = "Distance",
-                            tint = MaterialTheme.colorScheme.onSecondary,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = String.format("%.1f km", mosque.distance / 1000),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 10.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onSecondary
-                        )
-                    }
-                }
-            }
-
-            // Bottom Content: Name + Address
-            Column(modifier = Modifier.padding(top = 8.dp)) {
-                Text(
-                    text = mosque.name,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        letterSpacing = 0.5.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface, // Darker text for better readability
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                     Icon(
-                         imageVector = Icons.Filled.Info, // Placeholder for address icon or just use text
-                         contentDescription = null, // decorative
-                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                         modifier = Modifier.size(12.dp) 
-                     )
-                     Spacer(modifier = Modifier.width(4.dp))
-                     Text(
-                        text = mosque.address ?: "Alamat tidak tersedia",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                     )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun TodayAyahCard(ayah: AyahResponse) {
-    var expanded by remember { mutableStateOf(false) }
-    var isPlaying by remember { mutableStateOf(false) }
-    var mediaPlayer: MediaPlayer? by remember { mutableStateOf(null) }
-    val context = LocalContext.current
-
-    // Dispose MediaPlayer when card is removed or recomposed
-    DisposableEffect(Unit) {
-        onDispose {
-            mediaPlayer?.release()
-            mediaPlayer = null
-        }
-    }
-    
-    // Stop audio if collapsed
-    LaunchedEffect(expanded) {
-        if (!expanded && isPlaying) {
-             mediaPlayer?.stop()
-             mediaPlayer?.prepare() // Prepare for next play
-             isPlaying = false
-        }
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize(spring(stiffness = Spring.StiffnessLow)),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .clickable { expanded = !expanded }
-                .padding(20.dp)
-        ) {
-            // Header: Surah Info
-            Row(
-                 modifier = Modifier.fillMaxWidth(),
-                 horizontalArrangement = Arrangement.SpaceBetween,
-                 verticalAlignment = Alignment.Top
-            ) {
-                 Column(modifier = Modifier.weight(1f)) {
-                     Text(
-                         text = "${ayah.surahName} : ${ayah.ayahNo}",
-                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                         color = MaterialTheme.colorScheme.onSurface
-                     )
-                     Text(
-                         text = ayah.surahNameTranslation,
-                         style = MaterialTheme.typography.bodySmall,
-                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                     )
-                 }
-                 
-                 Icon(
-                     imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                     contentDescription = "Expand",
-                     tint = MaterialTheme.colorScheme.onSurfaceVariant
-                 )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Arabic Text
-             Text(
-                 text = ayah.arabic1,
-                 style = MaterialTheme.typography.headlineMedium.copy(
-                     fontWeight = FontWeight.SemiBold,
-                     fontFamily = androidx.compose.ui.text.font.FontFamily.Default // Or generic sans serif if Arabic font issues
-                 ),
-                 color = MaterialTheme.colorScheme.onSurface,
-                 modifier = Modifier.fillMaxWidth(),
-                 textAlign = androidx.compose.ui.text.style.TextAlign.End
-             )
-             
-             Spacer(modifier = Modifier.height(8.dp))
-             
-             // English Text
-             Text(
-                 text = ayah.english,
-                 style = MaterialTheme.typography.bodyMedium.copy(
-                     fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                 ),
-                 color = MaterialTheme.colorScheme.onSurfaceVariant
-             )
-
-            if (expanded) {
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Audio Player
-                val audioUrl = ayah.audio["1"]?.url // Mishary Rashid
-                
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = {
-                            if (audioUrl != null) {
-                                if (mediaPlayer == null) {
-                                     mediaPlayer = MediaPlayer().apply {
-                                         setDataSource(audioUrl)
-                                         setOnPreparedListener { 
-                                             start()
-                                             isPlaying = true
-                                         }
-                                         setOnCompletionListener { 
-                                             isPlaying = false 
-                                         }
-                                         prepareAsync()
-                                     }
-                                } else {
-                                    if (isPlaying) {
-                                        mediaPlayer?.pause()
-                                        isPlaying = false
-                                    } else {
-                                        mediaPlayer?.start()
-                                        isPlaying = true
-                                    }
-                                }
-                            } else {
-                                 Toast.makeText(context, "Audio not available", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.primary, CircleShape)
-                            .size(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Filled.Close else Icons.Filled.PlayArrow,
-                            contentDescription = if (isPlaying) "Stop" else "Play",
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.width(16.dp))
-                    
+                Column {
                     Text(
-                        text = if (isPlaying) "Playing Recitation..." else "Play Audio (Mishary Rashid)",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "As-salamu alaykum",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = userName ?: "Saudaraku",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        ),
+                        color = Color.White
                     )
                 }
-            }
-        }
-    }
-}
 
-@Composable
-fun screenPadding() = PaddingValues(horizontal = 24.dp, vertical = 24.dp)
-
-@Composable
-fun WelcomeHeader(userName: String?, photoUrl: String?) {
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        visible = true
-    }
-
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn() + slideInVertically(initialOffsetY = { -40 })
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                        .background(Color.White.copy(alpha = 0.2f))
                 ) {
                      AsyncImage(
-                        model = photoUrl ?: "https://ui-avatars.com/api/?name=${userName ?: "User"}&background=random",
-                        contentDescription = "Profile Picture",
+                        model = photoUrl ?: "https://ui-avatars.com/api/?name=${userName ?: "User"}&background=random&color=fff",
+                        contentDescription = "Profile",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
                 }
-                
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = "Assalamu'alaikum,",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = userName ?: "Saudaraku",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold, 
-                            fontSize = 18.sp
-                        )
-                    )
-                }
             }
-        }
-    }
-}
 
-@Composable
-fun ErrorCard(message: String, onRefresh: (() -> Unit)? = null) {
-    Card(
-         modifier = Modifier.fillMaxWidth(),
-         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f))
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier.weight(1f)
-            )
-            
-            onRefresh?.let {
-                Spacer(modifier = Modifier.width(16.dp))
-                Button(
-                    onClick = it,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    ),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    modifier = Modifier.height(36.dp)
-                ) {
-                    Text("Coba Lagi", style = MaterialTheme.typography.labelLarge)
-                }
-            }
-        }
-    }
-}
+            Spacer(modifier = Modifier.height(24.dp))
 
-@Composable
-fun PrayerTimesCard(prayerData: PrayerData, locationName: String) {
-    var expanded by remember { mutableStateOf(false) }
-    val nextPrayer = remember(prayerData) { PrayerTimeUtils.getNextPrayer(prayerData.times) }
-    val cardBgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) // Subtle background
-    val activeColor = MaterialTheme.colorScheme.primary // Brand color
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioLowBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
-            ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBgColor)
-    ) {
-        Column(
-             modifier = Modifier
-                 .fillMaxWidth()
-                 .padding(20.dp)
-        ) {
-            // Header Row: Toggle Button & Date
-            Row(
+            // Center Clock
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                 Column {
-                    Text(
-                        text = "Lokasi: $locationName",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = prayerData.date.readable,
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                 }
-                 
-                 IconButton(onClick = { expanded = !expanded }) {
-                     Icon(
-                         imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                         contentDescription = "Toggle",
-                         tint = MaterialTheme.colorScheme.onSurfaceVariant
-                     )
-                 }
+                 Text(
+                    text = timeString,
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 64.sp
+                    ),
+                    color = Color.White
+                 )
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            if (!expanded) {
-                // COLLAPSED: Show Next Prayer Only
-                nextPrayer?.let { (name, time) ->
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "Menuju Sholat",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        DisplayTimeBig(name, time, activeColor)
-                    }
-                }
-            } else {
-                // EXPANDED: Show List
-                // Map of prayers to iterate easily while keeping order
-                val prayers = listOf(
-                    "Fajr" to prayerData.times.fajr,
-                    "Dhuhr" to prayerData.times.dhuhr,
-                    "Asr" to prayerData.times.asr,
-                    "Maghrib" to prayerData.times.maghrib,
-                    "Isha" to prayerData.times.isha
-                )
-                
-                prayers.forEach { (name, time) ->
-                    // Check if this is the 'next' prayer to highlight
-                    val isNext = nextPrayer?.first == name
-                    
-                    PrayerItemRow(
-                        name = name, 
-                        time = time, 
-                        isNext = isNext,
-                        activeColor = activeColor
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Prayer Times Horizontal List Section
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Location Header
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.LocationOn,
+                        contentDescription = "Location",
+                        tint = Color.White.copy(alpha = 0.8f),
+                        modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = locationName ?: "Menemukan Lokasi...",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+                
+                // Prayer Times Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                     Column(modifier = Modifier.padding(vertical = 16.dp, horizontal = 8.dp)) {
+                         Row(
+                             modifier = Modifier
+                                 .fillMaxWidth()
+                                 .horizontalScroll(rememberScrollState()),
+                             horizontalArrangement = Arrangement.SpaceEvenly, // Distribute evenly
+                             verticalAlignment = Alignment.CenterVertically
+                         ) {
+                             if (prayerData != null) {
+                                val times = prayerData.times
+                                val prayers = listOf(
+                                    Triple("Fajr", times.fajr, Icons.Filled.WbTwilight),
+                                    Triple("Dzuhr", times.dhuhr, Icons.Filled.WbSunny),
+                                    Triple("Asr", times.asr, Icons.Filled.WbCloudy),
+                                    Triple("Maghrib", times.maghrib, Icons.Filled.WbTwilight),
+                                    Triple("Isha", times.isha, Icons.Filled.NightsStay)
+                                )
+                                
+                                prayers.forEach { (name, time, icon) ->
+                                    val isNext = nextPrayerPair?.first == name
+                                    PrayerTimeItem(name = name, time = time, icon = icon, isNext = isNext)
+                                }
+                             } else {
+                                 // Skeleton / Loading state
+                                 Text("Loading Prayer Times...", modifier = Modifier.padding(16.dp))
+                             }
+                         }
+                         
+                         // Reminder Text below list inside the card (or outside?)
+                         // User said "below Prayer Times Horizontal List", let's put it inside the card for cleaner UI or just below the row
+                         if (nextPrayerPair != null) {
+                             Spacer(modifier = Modifier.height(16.dp))
+                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                             Spacer(modifier = Modifier.height(12.dp))
+                             Row(
+                                 modifier = Modifier.fillMaxWidth(),
+                                 horizontalArrangement = Arrangement.Center,
+                                 verticalAlignment = Alignment.CenterVertically
+                             ) {
+                                  Icon(
+                                      imageVector = Icons.Filled.NightsStay, // Or relevant icon
+                                      contentDescription = null,
+                                      tint = MaterialTheme.colorScheme.primary,
+                                      modifier = Modifier.size(16.dp)
+                                  )
+                                  Spacer(modifier = Modifier.width(8.dp))
+                                  Text(
+                                      text = "Jangan lupa sholat ${nextPrayerPair.first} pukul ${nextPrayerPair.second}",
+                                      style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                      color = MaterialTheme.colorScheme.onSurface
+                                  )
+                             }
+                         }
+                     }
                 }
             }
         }
@@ -743,203 +442,794 @@ fun PrayerTimesCard(prayerData: PrayerData, locationName: String) {
 }
 
 @Composable
-fun DisplayTimeBig(name: String, time: String, activeColor: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+fun PrayerTimeItem(
+    name: String, 
+    time: String, 
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isNext: Boolean
+) {
+    val activeColor = MaterialTheme.colorScheme.primary
+    val contentColor = if (isNext) activeColor else MaterialTheme.colorScheme.onSurface
+    
+    // Scale or background change if next
+    val scale = if (isNext) 1.1f else 1f
+    
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(horizontal = 8.dp)
+    ) {
         Text(
             text = name,
-            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onSurface
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = if (isNext) FontWeight.Bold else FontWeight.Medium),
+            color = if (isNext) activeColor else MaterialTheme.colorScheme.onSurface
         )
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // Icon Circle
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(
+                    if (isNext) {
+                         androidx.compose.ui.graphics.Brush.linearGradient(
+                             colors = listOf(activeColor, activeColor.copy(alpha = 0.7f))
+                         )
+                    } else {
+                         androidx.compose.ui.graphics.Brush.linearGradient(
+                             colors = listOf(Color(0xFFFDBB2D), Color(0xFF22C1C3)) // Default Gradient
+                         )
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+             Icon(
+                 imageVector = icon,
+                 contentDescription = name,
+                 tint = Color.White,
+                 modifier = Modifier.size(24.dp)
+             )
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
         Text(
             text = time,
-            style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.ExtraBold),
-            color = activeColor
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = if (isNext) FontWeight.Bold else FontWeight.Medium),
+            color = if (isNext) activeColor else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
-@Composable
-fun PrayerItemRow(name: String, time: String, isNext: Boolean, activeColor: Color) {
-    val bgColor = if (isNext) activeColor.copy(alpha = 0.1f) else Color.Transparent
-    val textColor = if (isNext) activeColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-    val weight = if (isNext) FontWeight.Bold else FontWeight.Medium
-    
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(bgColor)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(text = name, style = MaterialTheme.typography.bodyLarge, fontWeight = weight, color = textColor)
-        Text(text = time, style = MaterialTheme.typography.bodyLarge, fontWeight = weight, color = textColor)
-    }
-}
 
-@Composable
-fun PrayerChecklistCard(
-    prayerLog: PrayerLog,
-    prayerData: PrayerData?,
-    selectedDate: String,
-    onToggle: (String, Boolean) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-    
-    // Date Validation Logic
-    val isTodayOrPast = remember(selectedDate) {
-        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-        val date = sdf.parse(selectedDate) ?: java.util.Date()
-        val today = java.util.Date()
-        // Determine relationship: 0=today, <0=past, >0=future (roughly)
-        // Simplification: compare strings if format is fixed
-        val todayStr = sdf.format(today)
-        selectedDate <= todayStr
-    }
-    
-    val isStrictlyPast = remember(selectedDate) {
-        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-        val todayStr = sdf.format(java.util.Date())
-        selectedDate < todayStr
-    }
-
-    // Find next prayer or current active one
-    val nextPrayerPair = remember(prayerData) {
-        prayerData?.let { PrayerTimeUtils.getNextPrayer(it.times) }
-    }
-    
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            // Header Section
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded },
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+    @Composable
+    fun NearestMosqueSection(mosques: List<Mosque>, onMosqueClick: (Mosque) -> Unit) {
+        if (mosques.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                shape = RoundedCornerShape(20.dp)
             ) {
-                Column {
+                Box(
+                    modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = "Tracker Ibadah",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
+                        "Tidak ada masjid ditemukan di sekitar.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (!expanded && nextPrayerPair != null) {
-                        Text(
-                            text = "Yuk, persiapkan sholat ${nextPrayerPair.first}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
-                Icon(
-                    imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                    contentDescription = "Expand",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
-
-            if (expanded) {
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                if (prayerData == null) {
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                         CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                    }
-                } else {
-                    val prayers = listOf(
-                        Triple("Subuh", "fajr", prayerData.times.fajr),
-                        Triple("Dzuhur", "dhuhr", prayerData.times.dhuhr),
-                        Triple("Ashar", "asr", prayerData.times.asr),
-                        Triple("Maghrib", "maghrib", prayerData.times.maghrib),
-                        Triple("Isya", "isha", prayerData.times.isha)
-                    )
-                    
-                    prayers.forEachIndexed { index, (label, key, time) ->
-                        val isChecked = when (key) {
-                            "fajr" -> prayerLog.fajr
-                            "dhuhr" -> prayerLog.dhuhr
-                            "asr" -> prayerLog.asr
-                            "maghrib" -> prayerLog.maghrib
-                            "isha" -> prayerLog.isha
-                            else -> false
-                        }
-                        
-                        val isTimePassed = remember(time, isStrictlyPast, isTodayOrPast) {
-                            if (isStrictlyPast) true
-                            else if (!isTodayOrPast) false // Future date
-                            else PrayerTimeUtils.hasTimePassed(time) // Today
-                        }
-                        
-                        // Styling for state
-                        val textColor = if (isTimePassed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        val checkEnabled = isTimePassed
-                        
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { 
-                                    if (checkEnabled) {
-                                        onToggle(key, !isChecked) 
-                                    } else {
-                                        Toast.makeText(context, "Belum masuk waktunya", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                                .padding(vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = label,
-                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                                    color = textColor
-                                )
-                                Text(
-                                    text = time,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (isTimePassed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                                )
-                            }
-                            
-                            Checkbox(
-                                checked = isChecked,
-                                onCheckedChange = { 
-                                    if (checkEnabled) {
-                                        onToggle(key, it) 
-                                    } else {
-                                        Toast.makeText(context, "Belum masuk waktunya", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                enabled = true, // We handle "enabled" logic manually to allow click for Toast
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor = MaterialTheme.colorScheme.primary,
-                                    uncheckedColor = if (isTimePassed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                                )
-                            )
-                        }
-                        if (index < prayers.lastIndex) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
-                        }
-                    }
+        } else {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(mosques.take(10)) { mosque ->
+                    MosqueItemCard(mosque = mosque, onClick = { onMosqueClick(mosque) })
                 }
-            } else {
-               // Collapsed View Content (Optional specific UI if needed besides header)
             }
         }
     }
-}
+
+    @Composable
+    fun MosqueItemCard(mosque: Mosque, onClick: () -> Unit) {
+        Card(
+            modifier = Modifier
+                .width(240.dp)
+                .height(140.dp) // Fixed height for uniformity
+                .clickable(onClick = onClick),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp), // Initial elevation
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(12.dp)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Top Row: Icon + Distance
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Icon Container
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Filled.Place,
+                                contentDescription = "Mosque",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    // Distance Badge
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.secondary,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.LocationOn,
+                                contentDescription = "Distance",
+                                tint = MaterialTheme.colorScheme.onSecondary,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = String.format("%.1f km", mosque.distance / 1000),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSecondary
+                            )
+                        }
+                    }
+                }
+
+                // Bottom Content: Name + Address
+                Column(modifier = Modifier.padding(top = 8.dp)) {
+                    Text(
+                        text = mosque.name,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            letterSpacing = 0.5.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface, // Darker text for better readability
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.Info, // Placeholder for address icon or just use text
+                            contentDescription = null, // decorative
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = mosque.address ?: "Alamat tidak tersedia",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun TodayAyahCard(ayah: AyahResponse) {
+        var expanded by remember { mutableStateOf(false) }
+        var isPlaying by remember { mutableStateOf(false) }
+        var mediaPlayer: MediaPlayer? by remember { mutableStateOf(null) }
+        val context = LocalContext.current
+
+        // Dispose MediaPlayer when card is removed or recomposed
+        DisposableEffect(Unit) {
+            onDispose {
+                mediaPlayer?.release()
+                mediaPlayer = null
+            }
+        }
+
+        // Stop audio if collapsed
+        LaunchedEffect(expanded) {
+            if (!expanded && isPlaying) {
+                mediaPlayer?.stop()
+                mediaPlayer?.prepare() // Prepare for next play
+                isPlaying = false
+            }
+        }
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize(spring(stiffness = Spring.StiffnessLow)),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .clickable { expanded = !expanded }
+                    .padding(20.dp)
+            ) {
+                // Header: Surah Info
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "${ayah.surahName} : ${ayah.ayahNo}",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = ayah.surahNameTranslation,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Icon(
+                        imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                        contentDescription = "Expand",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Arabic Text
+                Text(
+                    text = ayah.arabic1,
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Default // Or generic sans serif if Arabic font issues
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.End
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // English Text
+                Text(
+                    text = ayah.english,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                if (expanded) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Audio Player
+                    val audioUrl = ayah.audio["1"]?.url // Mishary Rashid
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = {
+                                if (audioUrl != null) {
+                                    if (mediaPlayer == null) {
+                                        mediaPlayer = MediaPlayer().apply {
+                                            setDataSource(audioUrl)
+                                            setOnPreparedListener {
+                                                start()
+                                                isPlaying = true
+                                            }
+                                            setOnCompletionListener {
+                                                isPlaying = false
+                                            }
+                                            prepareAsync()
+                                        }
+                                    } else {
+                                        if (isPlaying) {
+                                            mediaPlayer?.pause()
+                                            isPlaying = false
+                                        } else {
+                                            mediaPlayer?.start()
+                                            isPlaying = true
+                                        }
+                                    }
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "Audio not available",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            },
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                .size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Filled.Close else Icons.Filled.PlayArrow,
+                                contentDescription = if (isPlaying) "Stop" else "Play",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Text(
+                            text = if (isPlaying) "Playing Recitation..." else "Play Audio (Mishary Rashid)",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun screenPadding() = PaddingValues(horizontal = 24.dp, vertical = 24.dp)
+
+    @Composable
+    fun WelcomeHeader(userName: String?, photoUrl: String?) {
+        var visible by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            visible = true
+        }
+
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { -40 })
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                    ) {
+                        AsyncImage(
+                            model = photoUrl
+                                ?: "https://ui-avatars.com/api/?name=${userName ?: "User"}&background=random",
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text(
+                            text = "Assalamu'alaikum,",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = userName ?: "Saudaraku",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun ErrorCard(message: String, onRefresh: (() -> Unit)? = null) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer.copy(
+                    alpha = 0.5f
+                )
+            )
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.weight(1f)
+                )
+
+                onRefresh?.let {
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Button(
+                        onClick = it,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        ),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Text("Coba Lagi", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun PrayerTimesCard(prayerData: PrayerData, locationName: String) {
+        var expanded by remember { mutableStateOf(false) }
+        val nextPrayer = remember(prayerData) { PrayerTimeUtils.getNextPrayer(prayerData.times) }
+        val cardBgColor =
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) // Subtle background
+        val activeColor = MaterialTheme.colorScheme.primary // Brand color
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = cardBgColor)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                // Header Row: Toggle Button & Date
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Lokasi: $locationName",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = prayerData.date.readable,
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    IconButton(onClick = { expanded = !expanded }) {
+                        Icon(
+                            imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                            contentDescription = "Toggle",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (!expanded) {
+                    // COLLAPSED: Show Next Prayer Only
+                    nextPrayer?.let { (name, time) ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Menuju Sholat",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            DisplayTimeBig(name, time, activeColor)
+                        }
+                    }
+                } else {
+                    // EXPANDED: Show List
+                    // Map of prayers to iterate easily while keeping order
+                    val prayers = listOf(
+                        "Fajr" to prayerData.times.fajr,
+                        "Dhuhr" to prayerData.times.dhuhr,
+                        "Asr" to prayerData.times.asr,
+                        "Maghrib" to prayerData.times.maghrib,
+                        "Isha" to prayerData.times.isha
+                    )
+
+                    prayers.forEach { (name, time) ->
+                        // Check if this is the 'next' prayer to highlight
+                        val isNext = nextPrayer?.first == name
+
+                        PrayerItemRow(
+                            name = name,
+                            time = time,
+                            isNext = isNext,
+                            activeColor = activeColor
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun DisplayTimeBig(name: String, time: String, activeColor: Color) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = name,
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = time,
+                style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.ExtraBold),
+                color = activeColor
+            )
+        }
+    }
+
+    @Composable
+    fun PrayerItemRow(name: String, time: String, isNext: Boolean, activeColor: Color) {
+        val bgColor = if (isNext) activeColor.copy(alpha = 0.1f) else Color.Transparent
+        val textColor =
+            if (isNext) activeColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+        val weight = if (isNext) FontWeight.Bold else FontWeight.Medium
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(bgColor)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = weight,
+                color = textColor
+            )
+            Text(
+                text = time,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = weight,
+                color = textColor
+            )
+        }
+    }
+
+    @Composable
+    fun PrayerChecklistCard(
+        prayerLog: PrayerLog,
+        prayerData: PrayerData?,
+        selectedDate: String,
+        onToggle: (String, Boolean) -> Unit
+    ) {
+        var expanded by remember { mutableStateOf(false) }
+        val context = LocalContext.current
+
+        // Date Validation Logic
+        val isTodayOrPast = remember(selectedDate) {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            val date = sdf.parse(selectedDate) ?: java.util.Date()
+            val today = java.util.Date()
+            // Determine relationship: 0=today, <0=past, >0=future (roughly)
+            // Simplification: compare strings if format is fixed
+            val todayStr = sdf.format(today)
+            selectedDate <= todayStr
+        }
+
+        val isStrictlyPast = remember(selectedDate) {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            val todayStr = sdf.format(java.util.Date())
+            selectedDate < todayStr
+        }
+
+        // Find next prayer or current active one
+        val nextPrayerPair = remember(prayerData) {
+            prayerData?.let { PrayerTimeUtils.getNextPrayer(it.times) }
+        }
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                // Header Section
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expanded = !expanded },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Tracker Ibadah",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        if (!expanded && nextPrayerPair != null) {
+                            Text(
+                                text = "Yuk, persiapkan sholat ${nextPrayerPair.first}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                        contentDescription = "Expand",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (expanded) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (prayerData == null) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        }
+                    } else {
+                        val prayers = listOf(
+                            Triple("Subuh", "fajr", prayerData.times.fajr),
+                            Triple("Dzuhur", "dhuhr", prayerData.times.dhuhr),
+                            Triple("Ashar", "asr", prayerData.times.asr),
+                            Triple("Maghrib", "maghrib", prayerData.times.maghrib),
+                            Triple("Isya", "isha", prayerData.times.isha)
+                        )
+
+                        prayers.forEachIndexed { index, (label, key, time) ->
+                            val isChecked = when (key) {
+                                "fajr" -> prayerLog.fajr
+                                "dhuhr" -> prayerLog.dhuhr
+                                "asr" -> prayerLog.asr
+                                "maghrib" -> prayerLog.maghrib
+                                "isha" -> prayerLog.isha
+                                else -> false
+                            }
+
+                            val isTimePassed = remember(time, isStrictlyPast, isTodayOrPast) {
+                                if (isStrictlyPast) true
+                                else if (!isTodayOrPast) false // Future date
+                                else PrayerTimeUtils.hasTimePassed(time) // Today
+                            }
+
+                            // Styling for state
+                            val textColor =
+                                if (isTimePassed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                    alpha = 0.6f
+                                )
+                            val checkEnabled = isTimePassed
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (checkEnabled) {
+                                            onToggle(key, !isChecked)
+                                        } else {
+                                            Toast.makeText(
+                                                context,
+                                                "Belum masuk waktunya",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                    .padding(vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                        color = textColor
+                                    )
+                                    Text(
+                                        text = time,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (isTimePassed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                            alpha = 0.4f
+                                        )
+                                    )
+                                }
+
+                                Checkbox(
+                                    checked = isChecked,
+                                    onCheckedChange = {
+                                        if (checkEnabled) {
+                                            onToggle(key, it)
+                                        } else {
+                                            Toast.makeText(
+                                                context,
+                                                "Belum masuk waktunya",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    },
+                                    enabled = true, // We handle "enabled" logic manually to allow click for Toast
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = MaterialTheme.colorScheme.primary,
+                                        uncheckedColor = if (isTimePassed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                            alpha = 0.4f
+                                        )
+                                    )
+                                )
+                            }
+                            if (index < prayers.lastIndex) {
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(
+                                        alpha = 0.2f
+                                    )
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Collapsed View Content (Optional specific UI if needed besides header)
+                }
+            }
+        }
+    }
 
 @Composable
 fun DailyProgressCard(
@@ -975,26 +1265,26 @@ fun DailyProgressCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             Box(contentAlignment = Alignment.Center) {
                 // Segmented Progress
                 val primaryColor = MaterialTheme.colorScheme.primary
                 val trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                
+
                 Canvas(modifier = Modifier.size(80.dp)) {
                     val strokeWidth = 8.dp.toPx()
                     val radius = (size.minDimension - strokeWidth) / 2
                     val center = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
-                    
+
                     // 5 segments, 360 degrees. Each segment ~72 degrees.
                     // Let's leave a small gap of ~4 degrees.
                     val segmentAngle = 72f
                     val gapAngle = 6f // Gap between segments
                     val sweepAngle = segmentAngle - gapAngle
-                    
+
                     // Order: Fajr (top-ish?), Dhuhr, Asr, Maghrib, Isha
                     // Starting from -90 (top)
-                    
+
                     val prayersStatus = listOf(
                         prayerLog.fajr,
                         prayerLog.dhuhr,
@@ -1002,10 +1292,10 @@ fun DailyProgressCard(
                         prayerLog.maghrib,
                         prayerLog.isha
                     )
-                    
+
                     prayersStatus.forEachIndexed { index, isCompleted ->
                         val startAngle = -90f + (index * segmentAngle)
-                        
+
                         drawArc(
                             color = if (isCompleted) primaryColor else trackColor,
                             startAngle = startAngle + (gapAngle / 2),
@@ -1023,7 +1313,7 @@ fun DailyProgressCard(
                         )
                     }
                 }
-                
+
                 // Text in center
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
@@ -1048,15 +1338,15 @@ fun DateNavigatorCard(
     // Input: yyyy-MM-dd
     // Output 1: Day Name (e.g. Senin)
     // Output 2: Date (e.g. 5 Jan 2026)
-    
+
     val dateComponents = remember(date) {
         try {
             val inputFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
             val dateObj = inputFormat.parse(date) ?: java.util.Date()
-            
+
             val dayFormat = java.text.SimpleDateFormat("EEEE", java.util.Locale("id", "ID"))
             val dateFormat = java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale("id", "ID"))
-            
+
             Pair(dayFormat.format(dateObj), dateFormat.format(dateObj))
         } catch (e: Exception) {
 
@@ -1083,7 +1373,7 @@ fun DateNavigatorCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // Date Display
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
@@ -1097,9 +1387,9 @@ fun DateNavigatorCard(
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
-            
+
             Spacer(modifier = Modifier.weight(1f))
-            
+
             // Navigation Buttons Row
             Row(
                 modifier = Modifier
@@ -1109,7 +1399,7 @@ fun DateNavigatorCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                  IconButton(
-                    onClick = onPrevious, 
+                    onClick = onPrevious,
                     modifier = Modifier
                         .size(24.dp)
                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape)
@@ -1121,9 +1411,9 @@ fun DateNavigatorCard(
                         modifier = Modifier.size(16.dp)
                     )
                 }
-                
+
                  IconButton(
-                    onClick = onNext, 
+                    onClick = onNext,
                     modifier = Modifier
                         .size(24.dp)
                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape)
@@ -1184,11 +1474,13 @@ fun PrayerProgressDetailDialog(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        
+
                         Icon(
                             imageVector = if (isDone) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle, // Use a hollow circle logic if needed, but standard Outline check is fine or just a gray circle
                             contentDescription = if (isDone) "Completed" else "Not Completed",
-                            tint = if (isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                            tint = if (isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                alpha = 0.3f
+                            ),
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -1205,6 +1497,8 @@ fun PrayerProgressDetailDialog(
         shape = RoundedCornerShape(16.dp)
     )
 }
+
+
 
 
 
