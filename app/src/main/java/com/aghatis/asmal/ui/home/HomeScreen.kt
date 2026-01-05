@@ -60,11 +60,23 @@ import com.aghatis.asmal.data.repository.PrayerLogRepository
 @Composable
 fun HomeScreen() {
     val context = LocalContext.current
-    val prefsRepository = PrefsRepository(context)
-    val prayerRepository = PrayerRepository()
-    val quranRepository = QuranRepository(context)
-    val mosqueRepository = MosqueRepository(context)
-    val prayerLogRepository = PrayerLogRepository()
+    
+    // Database and DAO instantiation
+    val db = remember {
+        androidx.room.Room.databaseBuilder(
+            context.applicationContext,
+            com.aghatis.asmal.data.local.AppDatabase::class.java, "asmal-db"
+        )
+        .fallbackToDestructiveMigration()
+        .build()
+    }
+    
+    val prefsRepository = remember { PrefsRepository(context) } // Remember these to avoid recreation
+    val prayerRepository = remember { PrayerRepository(db.prayerDao()) }
+    val quranRepository = remember { QuranRepository(context) }
+    val mosqueRepository = remember { MosqueRepository(context, db.mosqueDao()) }
+    val prayerLogRepository = remember { PrayerLogRepository() }
+    
     val viewModel: HomeViewModel = viewModel(
         factory = HomeViewModel.Factory(prefsRepository, prayerRepository, quranRepository, mosqueRepository, prayerLogRepository)
     )
@@ -199,36 +211,23 @@ fun HomeScreen() {
             )
             Spacer(modifier = Modifier.height(16.dp))
             
-            when (val state = mosqueState) {
-                is MosqueUiState.Loading -> {
-                     Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                         CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            NearestMosqueSection(
+                mosqueState = mosqueState,
+                onMosqueClick = { mosque ->
+                     val gmmIntentUri = android.net.Uri.parse("google.navigation:q=${mosque.lat},${mosque.lon}")
+                     val mapIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, gmmIntentUri)
+                     mapIntent.setPackage("com.google.android.apps.maps")
+                     
+                     try {
+                         context.startActivity(mapIntent)
+                     } catch (e: Exception) {
+                         // Fallback to browser
+                         val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${mosque.lat},${mosque.lon}"))
+                         context.startActivity(browserIntent)
                      }
-                }
-                is MosqueUiState.Error -> {
-                    ErrorCard(
-                        message = "Ada kendala di third party nya, silahkan coba lagi",
-                        onRefresh = { viewModel.fetchPrayerTimesWithLocation(context) }
-                    )
-                }
-                is MosqueUiState.Success -> {
-                     NearestMosqueSection(mosques = state.mosques) { mosque ->
-                         val gmmIntentUri = android.net.Uri.parse("google.navigation:q=${mosque.lat},${mosque.lon}")
-                         val mapIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, gmmIntentUri)
-                         mapIntent.setPackage("com.google.android.apps.maps")
-                         
-                         // Verify if the intent can be resolved
-                         // Since standard Android often has maps, we try. If null, maybe open in browser.
-                         try {
-                             context.startActivity(mapIntent)
-                         } catch (e: Exception) {
-                             // Fallback to browser
-                             val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${mosque.lat},${mosque.lon}"))
-                             context.startActivity(browserIntent)
-                         }
-                     }
-                }
-            }
+                },
+                onRefresh = { viewModel.refresh(context) }
+            )
 
             // Add extra spacer for bottom navigation overlap prevention
             Spacer(modifier = Modifier.height(100.dp))
@@ -241,13 +240,15 @@ fun HomeHeaderSection(
     userName: String?,
     photoUrl: String?,
     prayerData: PrayerData?,
-    locationName: String?
+    locationName: String?,
+    isLoading: Boolean = false
 ) {
     // Background Image URL
     val bgImage = "https://api.aghatis.id/uploads/masjid_background_84c945e1cc.png"
 
     // Current Time State
     var currentTime by remember { mutableStateOf(java.util.Calendar.getInstance()) }
+    // ... existing launched effect ...
     LaunchedEffect(Unit) {
         while (true) {
             currentTime = java.util.Calendar.getInstance()
@@ -389,7 +390,19 @@ fun HomeHeaderSection(
                              horizontalArrangement = Arrangement.SpaceEvenly, // Distribute evenly
                              verticalAlignment = Alignment.CenterVertically
                          ) {
-                             if (prayerData != null) {
+                             if (isLoading) {
+                                  // Shimmer Loading
+                                  val brush = com.aghatis.asmal.ui.components.shimmerBrush()
+                                  repeat(5) {
+                                      Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(8.dp)) {
+                                          Box(modifier = Modifier.width(40.dp).height(10.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                                          Spacer(modifier = Modifier.height(8.dp))
+                                          Box(modifier = Modifier.size(48.dp).clip(CircleShape).background(brush))
+                                          Spacer(modifier = Modifier.height(8.dp))
+                                          Box(modifier = Modifier.width(30.dp).height(10.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                                      }
+                                  }
+                             } else if (prayerData != null) {
                                 val times = prayerData.times
                                 val prayers = listOf(
                                     Triple("Fajr", times.fajr, Icons.Filled.WbTwilight),
@@ -503,8 +516,51 @@ fun PrayerTimeItem(
 
 
     @Composable
-    fun NearestMosqueSection(mosques: List<Mosque>, onMosqueClick: (Mosque) -> Unit) {
-        if (mosques.isEmpty()) {
+    fun NearestMosqueSection(
+        mosqueState: MosqueUiState, 
+        onMosqueClick: (Mosque) -> Unit = {},
+        onRefresh: () -> Unit = {}
+    ) {
+        if (mosqueState is MosqueUiState.Error) {
+             ErrorCard(
+                 message = mosqueState.message.ifEmpty { "Gagal memuat masjid terdekat" },
+                 onRefresh = onRefresh
+             )
+             return
+        }
+
+        val isLoading = mosqueState is MosqueUiState.Loading
+        val mosques = (mosqueState as? MosqueUiState.Success)?.mosques ?: emptyList()
+
+        if (isLoading) {
+             LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(3) { 
+                     // Shimmer Card
+                     val brush = com.aghatis.asmal.ui.components.shimmerBrush()
+                     Card(
+                        modifier = Modifier.width(240.dp).height(140.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                     ) {
+                         Column(modifier = Modifier.padding(12.dp).fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                                 Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(brush))
+                                 Box(modifier = Modifier.width(60.dp).height(20.dp).clip(RoundedCornerShape(8.dp)).background(brush))
+                             }
+                             Column {
+                                 Box(modifier = Modifier.fillMaxWidth(0.8f).height(16.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                                 Spacer(modifier = Modifier.height(4.dp))
+                                 Box(modifier = Modifier.fillMaxWidth(0.5f).height(12.dp).clip(RoundedCornerShape(4.dp)).background(brush))
+                             }
+                         }
+                     }
+                }
+            }
+        } else if (mosques.isEmpty()) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

@@ -3,11 +3,14 @@ package com.aghatis.asmal.data.repository
 import android.content.Context
 import android.location.Geocoder
 import android.location.Location
-import com.aghatis.asmal.data.model.OverpassElement
+import androidx.room.Entity
 import com.aghatis.asmal.data.remote.OverpassApi
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.Locale
+import com.aghatis.asmal.data.local.dao.MosqueDao
+import com.aghatis.asmal.data.local.entity.MosqueCacheEntity
+
 
 data class Mosque(
     val id: Long,
@@ -18,7 +21,7 @@ data class Mosque(
     val distance: Float // in meters
 )
 
-class MosqueRepository(private val context: Context) {
+class MosqueRepository(private val context: Context, private val mosqueDao: MosqueDao) {
     private val api: OverpassApi
 
     init {
@@ -29,8 +32,26 @@ class MosqueRepository(private val context: Context) {
         api = retrofit.create(OverpassApi::class.java)
     }
 
-    suspend fun getNearestMosques(lat: Double, lon: Double, radiusMeters: Int = 5000): Result<List<Mosque>> {
+    suspend fun getNearestMosques(lat: Double, lon: Double, radiusMeters: Int = 5000, forceRefresh: Boolean = false): Result<List<Mosque>> {
         return try {
+            if (!forceRefresh) {
+                val cached = mosqueDao.getAllMosques()
+                if (cached.isNotEmpty()) {
+                    // Check if *any* cached mosque reference location is close to current user location
+                    // Or simpler: check the first one's reference (assuming all inserted together)
+                    val first = cached[0]
+                    val results = FloatArray(1)
+                    Location.distanceBetween(lat, lon, first.referenceLat, first.referenceLon, results)
+                    if (results[0] < 1000) { // 1km tolerance for "same location search"
+                        // Return cached
+                        val mapped = cached.map { 
+                            Mosque(it.id, it.name, it.lat, it.lon, it.address, it.distance)
+                        }
+                        return Result.success(mapped)
+                    }
+                }
+            }
+
             val query = """
                 [out:json][timeout:25];
                 (
@@ -76,10 +97,35 @@ class MosqueRepository(private val context: Context) {
             if (mosques.isEmpty()) {
                  Result.failure(Exception("Tidak ada masjid ditemukan di sekitar lokasi."))
             } else {
+                 // Cache logic: Clear old and insert new
+                 mosqueDao.clearAll()
+                 val entities = mosques.map { 
+                     MosqueCacheEntity(
+                         id = it.id,
+                         name = it.name,
+                         lat = it.lat,
+                         lon = it.lon,
+                         address = it.address,
+                         distance = it.distance,
+                         referenceLat = lat,
+                         referenceLon = lon
+                     ) 
+                 }
+                 mosqueDao.insertAll(entities)
+                 
                  Result.success(mosques)
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            // Fallback to cache?
+             val cached = mosqueDao.getAllMosques()
+             if (cached.isNotEmpty()) {
+                  val mapped = cached.map { 
+                        Mosque(it.id, it.name, it.lat, it.lon, it.address, it.distance)
+                  }
+                  Result.success(mapped)
+             } else {
+                 Result.failure(e)
+             }
         }
     }
 

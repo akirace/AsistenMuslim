@@ -13,7 +13,7 @@ class QuranRepository(context: android.content.Context) {
     private val api: QuranApi
     private val db = androidx.room.Room.databaseBuilder(
         context.applicationContext,
-        com.aghatis.asmal.data.local.AppDatabase::class.java, "asisten_muslim.db"
+        com.aghatis.asmal.data.local.AppDatabase::class.java, "asmal-db"
     ).build()
 
     init {

@@ -210,11 +210,52 @@ class HomeViewModel(
         }
     }
 
-    private suspend fun fetchPrayerTimes(lat: Double, long: Double, date: String, address: String? = null) {
-        val result = prayerRepository.getPrayerTimes(lat, long, date)
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    @SuppressLint("MissingPermission")
+    fun refresh(context: Context) {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                // Force refresh flow
+                val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
+                val locationResult = fusedLocationClient.getCurrentLocation(
+                    Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                    CancellationTokenSource().token
+                ).await()
+                
+                if (locationResult != null) {
+                    val address = getAddress(context, locationResult.latitude, locationResult.longitude)
+                    lastLat = locationResult.latitude
+                    lastLong = locationResult.longitude
+                    fetchPrayerTimes(locationResult.latitude, locationResult.longitude, _selectedDate.value, address, forceRefresh = true)
+                    fetchNearestMosques(locationResult.latitude, locationResult.longitude, forceRefresh = true)
+                } else {
+                     // Try last location if current fails
+                     val lastLocation = fusedLocationClient.lastLocation.await()
+                     if (lastLocation != null) {
+                         val address = getAddress(context, lastLocation.latitude, lastLocation.longitude)
+                         fetchPrayerTimes(lastLocation.latitude, lastLocation.longitude, _selectedDate.value, address, forceRefresh = true)
+                         fetchNearestMosques(lastLocation.latitude, lastLocation.longitude, forceRefresh = true)
+                     }
+                }
+            } catch (e: Exception) {
+                 _uiState.value = HomeUiState.Error("Refresh failed: ${e.message}")
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
+
+    private suspend fun fetchPrayerTimes(lat: Double, long: Double, date: String, address: String? = null, forceRefresh: Boolean = false) {
+        // If not refreshing, set loading state only if no data
+        if (!forceRefresh && _uiState.value !is HomeUiState.Success) {
+             _uiState.value = HomeUiState.Loading
+        }
+        
+        val result = prayerRepository.getPrayerTimes(lat, long, date, address, forceRefresh)
         result.onSuccess { prayerData ->
-            // If address is null (from changeDate re-fetch), keep existing address if possible
-            // But simplify: pass address only on location update. Use current state's address if null.
             val currentAddress = (uiState.value as? HomeUiState.Success)?.locationName ?: address ?: "Unknown Location"
             _uiState.value = HomeUiState.Success(prayerData, currentAddress)
         }.onFailure { e ->
@@ -222,8 +263,11 @@ class HomeViewModel(
         }
     }
 
-    private suspend fun fetchNearestMosques(lat: Double, long: Double) {
-        val result = mosqueRepository.getNearestMosques(lat, long)
+    private suspend fun fetchNearestMosques(lat: Double, long: Double, forceRefresh: Boolean = false) {
+        if (!forceRefresh && _mosqueState.value !is MosqueUiState.Success) {
+            _mosqueState.value = MosqueUiState.Loading
+        }
+        val result = mosqueRepository.getNearestMosques(lat, long, forceRefresh = forceRefresh)
         result.onSuccess { mosques ->
             _mosqueState.value = MosqueUiState.Success(mosques)
         }.onFailure { e ->
