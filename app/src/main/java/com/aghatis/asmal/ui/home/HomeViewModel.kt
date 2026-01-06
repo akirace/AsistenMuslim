@@ -19,6 +19,9 @@ import com.aghatis.asmal.data.repository.PrefsRepository
 import com.aghatis.asmal.data.repository.QuranRepository
 import com.aghatis.asmal.data.repository.PrayerLogRepository
 import com.aghatis.asmal.data.model.PrayerLog
+import com.aghatis.asmal.data.repository.BackgroundRepository
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Date
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -30,6 +33,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -40,7 +44,8 @@ class HomeViewModel(
     private val prayerRepository: PrayerRepository,
     private val quranRepository: QuranRepository,
     private val mosqueRepository: MosqueRepository,
-    private val prayerLogRepository: PrayerLogRepository
+    private val prayerLogRepository: PrayerLogRepository,
+    private val backgroundRepository: BackgroundRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -64,6 +69,22 @@ class HomeViewModel(
     private val _prayerProgress = MutableStateFlow(0f)
     val prayerProgress: StateFlow<Float> = _prayerProgress.asStateFlow()
     
+    // Track current theme (dark mode)
+    private val _isDarkTheme = MutableStateFlow(false)
+    
+    // Background URL based on current theme
+    val currentBackgroundUrl: StateFlow<String?> = combine(
+        prefsRepository.backgroundUrlLight,
+        prefsRepository.backgroundUrlDark,
+        _isDarkTheme
+    ) { lightUrl, darkUrl, isDark ->
+        if (isDark) darkUrl else lightUrl
+    }.stateIn(
+        scope = viewModelScope,
+        started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
+    
     // Cache location for date changes
     private var lastLat: Double? = null
     private var lastLong: Double? = null
@@ -71,6 +92,32 @@ class HomeViewModel(
     init {
         loadUser()
         fetchRandomAyah()
+        fetchBackgroundsIfNeeded()
+    }
+    
+    /**
+     * Updates the current theme and triggers background URL reselection
+     */
+    fun updateTheme(isDark: Boolean) {
+        _isDarkTheme.value = isDark
+    }
+    
+    /**
+     * Fetches both background URLs from API if not cached
+     */
+    private fun fetchBackgroundsIfNeeded() {
+        viewModelScope.launch {
+            val lightUrl = prefsRepository.backgroundUrlLight.first()
+            val darkUrl = prefsRepository.backgroundUrlDark.first()
+            
+            // Only fetch if either URL is missing
+            if (lightUrl.isNullOrEmpty() || darkUrl.isNullOrEmpty()) {
+                val urls = backgroundRepository.getBackgroundUrls()
+                urls?.let { (light, dark) ->
+                    prefsRepository.saveBackgroundUrls(light, dark)
+                }
+            }
+        }
     }
     
     private fun fetchRandomAyah() {
@@ -281,7 +328,8 @@ class HomeViewModel(
             prayerRepository: PrayerRepository,
             quranRepository: QuranRepository,
             mosqueRepository: MosqueRepository,
-            prayerLogRepository: PrayerLogRepository
+            prayerLogRepository: PrayerLogRepository,
+            backgroundRepository: BackgroundRepository
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 HomeViewModel(
@@ -289,7 +337,8 @@ class HomeViewModel(
                     prayerRepository, 
                     quranRepository,
                     mosqueRepository,
-                    PrayerLogRepository()
+                    prayerLogRepository,
+                    backgroundRepository
                 )
             }
         }

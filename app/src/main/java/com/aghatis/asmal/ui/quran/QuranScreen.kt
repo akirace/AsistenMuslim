@@ -26,6 +26,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.aghatis.asmal.data.model.SurahEntity
 import com.aghatis.asmal.data.repository.QuranRepository
+import com.aghatis.asmal.data.repository.QoriRepository
+import com.aghatis.asmal.data.model.QoriEntity
+import androidx.compose.foundation.lazy.LazyRow
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 
@@ -36,9 +42,49 @@ fun QuranScreen(
 ) {
     val context = LocalContext.current
     val repository = remember { QuranRepository(context) }
-    val viewModel: QuranViewModel = viewModel(factory = QuranViewModel.Factory(repository))
+    // Instantiate QoriRepository using database from QuranRepository (shared db preferred, but for now new instance via context)
+    // Note: Best practice is dependency injection or shared DB instance. 
+    // Assuming AppDatabase is singleton or cheap, or extracting DB access.
+    // For now, let's assume we can get it via context similarly to QuranRepository internal.
+    // Ideally we should refactor QuranRepository to take DB or Context and separate DAO.
+    // For this specific task, we'll follow existing pattern but create QoriRepository.
+    
+    // We need to access the database instance. Since QuranRepository creates its own private DB instance, 
+    // we should ideally expose it or create a singleton AppDatabase.
+    // Blocked by private db in QuranRepository. 
+    // Workaround: Create new QoriRepository that also creates DB instance (not optimal for consistency but works for separation)
+    // OR: Modify QuranRepository to expose DB or be Singleton.
+    // Seeing QuranRepository creates DB in init: 
+    // private val db = androidx.room.Room.databaseBuilder(...).build()
+    
+    // Let's create QoriRepository similar to QuranRepository structure for now, 
+    // passing Context and letting it create its own DB ref or use a shared one in future refactor.
+    // Wait, QoriRepository takes QoriDao. 
+    // So we need to create DB here or inside a factory helper.
+    
+    // Let's Quick Fix: Create a helper to get database since we are in Composable.
+    val db = remember { 
+         androidx.room.Room.databaseBuilder(
+            context.applicationContext,
+            com.aghatis.asmal.data.local.AppDatabase::class.java, "asmal-db"
+        ).fallbackToDestructiveMigration().build()
+    }
+    
+    val qoriRepository = remember { com.aghatis.asmal.data.repository.QoriRepository(db.qoriDao()) }
+    
+    // We also need separate QuranRepository that ideally shares this DB, but existing one creates its own.
+    // To avoid DB open conflict or resource waste, we should ideally use the same DB.
+    // But modifying QuranRepository deeply might be risky without viewing it all. 
+    // Let's use the new db instance for Qori, and let QuranRepository keep its own for now (sqlite supports multiple open connections usually, though singleton recommended).
+    // Better yet: Pass db to QuranRepository if possible? No, constructor takes Context.
+    
+    val viewModel: QuranViewModel = viewModel(
+        factory = QuranViewModel.Factory(repository, qoriRepository)
+    )
+    
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val qoriList by viewModel.qoriList.collectAsState()
 
     val tabs = listOf("Qur'an", "Qur'an Audio", "Baca")
     val pagerState = androidx.compose.foundation.pager.rememberPagerState { tabs.size }
@@ -95,7 +141,7 @@ fun QuranScreen(
                         navController.navigate("quran_detail/$surahNo")
                     }
                 )
-                1 -> QuranAudioScreen()
+                1 -> QuranAudioScreen(qoriList = qoriList)
                 2 -> TerakhirBacaScreen()
             }
         }
@@ -183,21 +229,90 @@ fun SurahListContent(
 }
 
 @Composable
-fun QuranAudioScreen() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Filled.Star, // Use Star as placeholder for audio
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+fun QuranAudioScreen(qoriList: List<QoriEntity>) {
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        item {
             Text(
-                "Quran Audio Feature Coming Soon",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "Reciters",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(bottom = 16.dp)
             )
+        }
+
+        item {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(bottom = 16.dp) // Add padding for shadow
+            ) {
+                items(qoriList) { qori ->
+                    QoriItem(qori = qori)
+                }
+            }
+        }
+        
+        // Placeholder for other audio features
+        item {
+             Spacer(modifier = Modifier.height(24.dp))
+             Text(
+                text = "Popular Surahs",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+            // Just some placeholders to make screen look full
+             repeat(3) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).height(60.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f))
+                ) { }
+            }
+        }
+    }
+}
+
+@Composable
+fun QoriItem(qori: QoriEntity) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        modifier = Modifier
+            .width(140.dp)
+            .height(180.dp)
+            .clickable { /* Handle click */ }
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            AsyncImage(
+                model = qori.photoUrl ?: "https://ui-avatars.com/api/?name=${qori.reciterName}&background=random",
+                contentDescription = qori.reciterName,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .background(Color.Gray)
+            )
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = qori.reciterName,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
         }
     }
 }

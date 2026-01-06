@@ -60,7 +60,7 @@ import com.aghatis.asmal.ui.menu.MenuActivity
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.aghatis.asmal.ui.theme.AsistenAmalMuslimTheme
-import com.aghatis.asmal.data.model.AppTheme
+
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -79,8 +79,7 @@ class LoginActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val selectedTheme by prefsRepository.selectedTheme.collectAsState(initial = AppTheme.MATERIAL_YOU)
-            AsistenAmalMuslimTheme(theme = selectedTheme) {
+            AsistenAmalMuslimTheme {
                 LoginScreen(viewModel = viewModel, onGoogleSignIn = {
                     initiateGoogleSignIn()
                 })

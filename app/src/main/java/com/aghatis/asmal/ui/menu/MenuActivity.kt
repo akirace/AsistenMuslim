@@ -37,8 +37,7 @@ class MenuActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val selectedTheme by prefsRepository.selectedTheme.collectAsState(initial = AppTheme.MATERIAL_YOU)
-            AsistenAmalMuslimTheme(theme = selectedTheme) {
+            AsistenAmalMuslimTheme() {
                 MenuScreen(viewModel = viewModel)
             }
         }

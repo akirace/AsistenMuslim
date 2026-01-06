@@ -9,12 +9,13 @@ import com.aghatis.asmal.data.local.entity.PrayerCacheEntity
 import com.aghatis.asmal.data.model.SurahEntity
 
 @Database(
-    entities = [SurahEntity::class, PrayerCacheEntity::class, MosqueCacheEntity::class],
-    version = 2, 
+    entities = [SurahEntity::class, PrayerCacheEntity::class, MosqueCacheEntity::class, com.aghatis.asmal.data.model.QoriEntity::class],
+    version = 3, 
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun surahDao(): SurahDao
     abstract fun prayerDao(): PrayerDao
     abstract fun mosqueDao(): MosqueDao
+    abstract fun qoriDao(): com.aghatis.asmal.data.local.dao.QoriDao
 }

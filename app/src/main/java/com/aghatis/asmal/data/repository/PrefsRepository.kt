@@ -21,7 +21,8 @@ class PrefsRepository(private val context: Context) {
         private val KEY_DISPLAY_NAME = stringPreferencesKey("display_name")
         private val KEY_EMAIL = stringPreferencesKey("email")
         private val KEY_PHOTO_URL = stringPreferencesKey("photo_url")
-        private val KEY_THEME = stringPreferencesKey("app_theme")
+        private val KEY_BACKGROUND_URL_LIGHT = stringPreferencesKey("background_url_light")
+        private val KEY_BACKGROUND_URL_DARK = stringPreferencesKey("background_url_dark")
     }
 
     val isLoggedIn: Flow<Boolean> = context.dataStore.data.map { preferences ->
@@ -56,18 +57,19 @@ class PrefsRepository(private val context: Context) {
             preferences.clear()
         }
     }
-    val selectedTheme: Flow<AppTheme> = context.dataStore.data.map { preferences ->
-        val themeName = preferences[KEY_THEME] ?: AppTheme.MATERIAL_YOU.name
-        try {
-            AppTheme.valueOf(themeName)
-        } catch (e: Exception) {
-            AppTheme.MATERIAL_YOU
-        }
+
+    val backgroundUrlLight: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_BACKGROUND_URL_LIGHT]
     }
 
-    suspend fun saveTheme(theme: AppTheme) {
+    val backgroundUrlDark: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_BACKGROUND_URL_DARK]
+    }
+
+    suspend fun saveBackgroundUrls(lightUrl: String, darkUrl: String) {
         context.dataStore.edit { preferences ->
-            preferences[KEY_THEME] = theme.name
+            preferences[KEY_BACKGROUND_URL_LIGHT] = lightUrl
+            preferences[KEY_BACKGROUND_URL_DARK] = darkUrl
         }
     }
 }

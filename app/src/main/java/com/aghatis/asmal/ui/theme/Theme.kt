@@ -41,20 +41,14 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun AsistenAmalMuslimTheme(
-    theme: AppTheme = AppTheme.MATERIAL_YOU,
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-    val colorScheme = when (theme) {
-        AppTheme.MATERIAL_YOU -> {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-            } else {
-                if (darkTheme) DarkColorScheme else LightColorScheme
-            }
-        }
-        AppTheme.NIGHT -> DarkColorScheme
+    val colorScheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    } else {
+        if (darkTheme) DarkColorScheme else LightColorScheme
     }
 
     MaterialTheme(

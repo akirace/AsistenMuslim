@@ -34,7 +34,6 @@ fun SettingScreen(onNavigateBack: () -> Unit) {
     val viewModel: SettingViewModel = viewModel(
         factory = SettingViewModel.Factory(prefsRepository)
     )
-    val selectedTheme by viewModel.selectedTheme.collectAsState()
 
     Scaffold(
         topBar = {
@@ -82,21 +81,6 @@ fun SettingScreen(onNavigateBack: () -> Unit) {
                             fontWeight = FontWeight.Medium
                         )
                         Spacer(modifier = Modifier.height(12.dp))
-                        
-                        AppTheme.values().forEach { theme ->
-                            ThemeOptionRow(
-                                theme = theme,
-                                isSelected = selectedTheme == theme,
-                                onClick = { viewModel.updateTheme(theme) }
-                            )
-                            if (theme != AppTheme.values().last()) {
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                    thickness = 0.5.dp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-                                )
-                            }
-                        }
                     }
                 }
             }

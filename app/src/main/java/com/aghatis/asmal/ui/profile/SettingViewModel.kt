@@ -12,15 +12,6 @@ import kotlinx.coroutines.launch
 
 class SettingViewModel(private val prefsRepository: PrefsRepository) : ViewModel() {
 
-    val selectedTheme: StateFlow<AppTheme> = prefsRepository.selectedTheme
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppTheme.MATERIAL_YOU)
-
-    fun updateTheme(theme: AppTheme) {
-        viewModelScope.launch {
-            prefsRepository.saveTheme(theme)
-        }
-    }
-
     class Factory(private val prefsRepository: PrefsRepository) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(SettingViewModel::class.java)) {

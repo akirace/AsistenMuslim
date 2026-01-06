@@ -47,6 +47,7 @@ import com.aghatis.asmal.data.repository.PrayerRepository
 import com.aghatis.asmal.data.repository.PrefsRepository
 import com.aghatis.asmal.utils.PrayerTimeUtils
 import android.media.MediaPlayer
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -56,6 +57,7 @@ import com.aghatis.asmal.data.repository.QuranRepository
 import com.aghatis.asmal.data.repository.MosqueRepository
 import com.aghatis.asmal.data.model.PrayerLog
 import com.aghatis.asmal.data.repository.PrayerLogRepository
+import com.aghatis.asmal.data.repository.BackgroundRepository
 
 @Composable
 fun HomeScreen() {
@@ -76,9 +78,17 @@ fun HomeScreen() {
     val quranRepository = remember { QuranRepository(context) }
     val mosqueRepository = remember { MosqueRepository(context, db.mosqueDao()) }
     val prayerLogRepository = remember { PrayerLogRepository() }
+    val backgroundRepository = remember { BackgroundRepository() }
     
     val viewModel: HomeViewModel = viewModel(
-        factory = HomeViewModel.Factory(prefsRepository, prayerRepository, quranRepository, mosqueRepository, prayerLogRepository)
+        factory = HomeViewModel.Factory(
+            prefsRepository, 
+            prayerRepository, 
+            quranRepository, 
+            mosqueRepository, 
+            prayerLogRepository,
+            backgroundRepository
+        )
     )
 
     val user by viewModel.userState.collectAsState()
@@ -88,6 +98,13 @@ fun HomeScreen() {
     val prayerLog by viewModel.prayerLogState.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
     val prayerProgress by viewModel.prayerProgress.collectAsState()
+    val backgroundUrl by viewModel.currentBackgroundUrl.collectAsState()
+    
+    // Detect system theme and update ViewModel
+    val isDarkTheme = isSystemInDarkTheme()
+    LaunchedEffect(isDarkTheme) {
+        viewModel.updateTheme(isDarkTheme)
+    }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -122,7 +139,8 @@ fun HomeScreen() {
             userName = user?.displayName,
             photoUrl = user?.photoUrl,
             prayerData = currentPrayerData,
-            locationName = currentLocationName
+            locationName = currentLocationName,
+            backgroundUrl = backgroundUrl
         )
 
         Column(modifier = Modifier.padding(screenPadding())) {
@@ -241,10 +259,11 @@ fun HomeHeaderSection(
     photoUrl: String?,
     prayerData: PrayerData?,
     locationName: String?,
-    isLoading: Boolean = false
+    isLoading: Boolean = false,
+    backgroundUrl: String? = null
 ) {
-    // Background Image URL
-    val bgImage = "https://api.aghatis.id/uploads/masjid_background_84c945e1cc.png"
+    // Background Image URL - Use dynamic from API if available, otherwise fallback to default
+    val bgImage = backgroundUrl ?: "https://api.aghatis.id/uploads/masjid_background_84c945e1cc.png"
 
     // Current Time State
     var currentTime by remember { mutableStateOf(java.util.Calendar.getInstance()) }

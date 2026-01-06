@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aghatis.asmal.data.model.SurahEntity
 import com.aghatis.asmal.data.repository.QuranRepository
+import com.aghatis.asmal.data.repository.QoriRepository
+import com.aghatis.asmal.data.model.QoriEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,29 +22,36 @@ sealed class QuranUiState {
     data class Error(val message: String) : QuranUiState()
 }
 
-class QuranViewModel(private val repository: QuranRepository) : ViewModel() {
+class QuranViewModel(
+    private val repository: QuranRepository,
+    private val qoriRepository: QoriRepository
+) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    // Qori UI State
+    private val _qoriList = MutableStateFlow<List<QoriEntity>>(emptyList())
+    val qoriList: StateFlow<List<QoriEntity>> = _qoriList.asStateFlow()
+
     private val _allSurahs = MutableStateFlow<List<SurahEntity>>(emptyList())
-    
+
     // We need to keep uiState as a simple StateFlow but derived from others
     // Using stateIn is more idiomatic for deriving flows in ViewModels
     private val _internalUiState = MutableStateFlow<QuranUiState>(QuranUiState.Loading)
-    
+
     val uiState: StateFlow<QuranUiState> = combine(_allSurahs, _searchQuery) { surahs, query ->
         if (surahs.isEmpty()) {
             // Check if we are still loading or truly empty
-            if (_internalUiState.value is QuranUiState.Loading) QuranUiState.Loading 
+            if (_internalUiState.value is QuranUiState.Loading) QuranUiState.Loading
             else QuranUiState.Success(emptyList())
         } else if (query.isEmpty()) {
             QuranUiState.Success(surahs)
         } else {
-            val filtered = surahs.filter { 
-                it.surahName.contains(query, ignoreCase = true) || 
-                it.surahNo.toString() == query ||
-                it.surahNameArabic.contains(query)
+            val filtered = surahs.filter {
+                it.surahName.contains(query, ignoreCase = true) ||
+                        it.surahNo.toString() == query ||
+                        it.surahNameArabic.contains(query)
             }
             QuranUiState.Success(filtered)
         }
@@ -54,6 +63,15 @@ class QuranViewModel(private val repository: QuranRepository) : ViewModel() {
 
     init {
         getSurahs()
+        getQoris()
+    }
+
+    private fun getQoris() {
+        viewModelScope.launch {
+            qoriRepository.getQoris().collect { qoris ->
+                _qoriList.value = qoris
+            }
+        }
     }
 
     fun onSearchQueryChange(query: String) {
@@ -74,13 +92,17 @@ class QuranViewModel(private val repository: QuranRepository) : ViewModel() {
         }
     }
 
-    class Factory(private val repository: QuranRepository) : ViewModelProvider.Factory {
+    class Factory(
+        private val repository: QuranRepository,
+        private val qoriRepository: QoriRepository
+    ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(QuranViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
-                return QuranViewModel(repository) as T
+                return QuranViewModel(repository, qoriRepository) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
 }
+
