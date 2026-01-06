@@ -1,5 +1,6 @@
 package com.aghatis.asmal.ui.quran
 
+import android.media.MediaPlayer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -34,12 +35,24 @@ class QuranViewModel(
     private val _qoriList = MutableStateFlow<List<QoriEntity>>(emptyList())
     val qoriList: StateFlow<List<QoriEntity>> = _qoriList.asStateFlow()
 
+    // Audio Playback State
+    private val _selectedQoriId = MutableStateFlow("1")
+    val selectedQoriId: StateFlow<String> = _selectedQoriId.asStateFlow()
+
+    private val _currentPlayingSurah = MutableStateFlow<Int?>(null)
+    val currentPlayingSurah: StateFlow<Int?> = _currentPlayingSurah.asStateFlow()
+
+    private var mediaPlayer: MediaPlayer? = null
+
     private val _allSurahs = MutableStateFlow<List<SurahEntity>>(emptyList())
 
     // We need to keep uiState as a simple StateFlow but derived from others
     // Using stateIn is more idiomatic for deriving flows in ViewModels
     private val _internalUiState = MutableStateFlow<QuranUiState>(QuranUiState.Loading)
 
+    // We need to expose all surahs for the list in Audio screen
+    val allSurahs: StateFlow<List<SurahEntity>> = _allSurahs.asStateFlow()
+    
     val uiState: StateFlow<QuranUiState> = combine(_allSurahs, _searchQuery) { surahs, query ->
         if (surahs.isEmpty()) {
             // Check if we are still loading or truly empty
@@ -73,6 +86,80 @@ class QuranViewModel(
             }
         }
     }
+
+    fun onSelectQori(id: String) {
+        _selectedQoriId.value = id
+        // Stop playing if qori changes? Optional. Let's stop to avoid confusion.
+        stopAudio()
+    }
+
+    fun playAudio(surahNo: Int) {
+        // If clicking the same surah that is playing, toggle (stop)
+        if (_currentPlayingSurah.value == surahNo) {
+            stopAudio()
+            return
+        }
+
+        stopAudio() // Stop any previous
+        _currentPlayingSurah.value = surahNo // Set loading/playing state indicator
+
+        viewModelScope.launch {
+            val result = repository.getSurahDetail(surahNo)
+            result.onSuccess { detail ->
+                val qoriId = _selectedQoriId.value
+                // Fallback to "1" if selected not found, though UI should prevent this
+                val audioUrl = detail.audio[qoriId]?.url ?: detail.audio["1"]?.url
+                
+                if (audioUrl != null) {
+                    playUrl(audioUrl)
+                } else {
+                    _currentPlayingSurah.value = null // Reset if url not found
+                    // Could expose error state here
+                }
+            }.onFailure {
+                _currentPlayingSurah.value = null
+            }
+        }
+    }
+
+    private fun playUrl(url: String) {
+        try {
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(url)
+                prepareAsync()
+                setOnPreparedListener { mp ->
+                    mp.start()
+                }
+                setOnCompletionListener {
+                    _currentPlayingSurah.value = null
+                }
+                setOnErrorListener { _, _, _ ->
+                    _currentPlayingSurah.value = null
+                    true
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            _currentPlayingSurah.value = null
+        }
+    }
+
+    private fun stopAudio() {
+        try {
+            mediaPlayer?.stop()
+            mediaPlayer?.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        mediaPlayer = null
+        _currentPlayingSurah.value = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopAudio()
+    }
+
 
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query

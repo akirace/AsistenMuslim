@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 
@@ -85,6 +86,9 @@ fun QuranScreen(
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val qoriList by viewModel.qoriList.collectAsState()
+    val selectedQoriId by viewModel.selectedQoriId.collectAsState()
+    val currentPlayingSurah by viewModel.currentPlayingSurah.collectAsState()
+    val allSurahs by viewModel.allSurahs.collectAsState()
 
     val tabs = listOf("Qur'an", "Qur'an Audio", "Baca")
     val pagerState = androidx.compose.foundation.pager.rememberPagerState { tabs.size }
@@ -141,7 +145,14 @@ fun QuranScreen(
                         navController.navigate("quran_detail/$surahNo")
                     }
                 )
-                1 -> QuranAudioScreen(qoriList = qoriList)
+                1 -> QuranAudioScreen(
+                    qoriList = qoriList,
+                    selectedQoriId = selectedQoriId,
+                    allSurahs = allSurahs,
+                    currentPlayingSurah = currentPlayingSurah,
+                    onQoriSelected = { viewModel.onSelectQori(it) },
+                    onPlaySurah = { viewModel.playAudio(it) }
+                )
                 2 -> TerakhirBacaScreen()
             }
         }
@@ -229,9 +240,16 @@ fun SurahListContent(
 }
 
 @Composable
-fun QuranAudioScreen(qoriList: List<QoriEntity>) {
+fun QuranAudioScreen(
+    qoriList: List<QoriEntity>,
+    selectedQoriId: String,
+    allSurahs: List<SurahEntity>,
+    currentPlayingSurah: Int?,
+    onQoriSelected: (String) -> Unit,
+    onPlaySurah: (Int) -> Unit
+) {
     LazyColumn(
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(bottom = 80.dp), // Extra padding for potential bottom play bar
         modifier = Modifier.fillMaxSize()
     ) {
         item {
@@ -239,64 +257,90 @@ fun QuranAudioScreen(qoriList: List<QoriEntity>) {
                 text = "Reciters",
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(16.dp)
             )
         }
 
         item {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 16.dp) // Add padding for shadow
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 items(qoriList) { qori ->
-                    QoriItem(qori = qori)
+                    QoriItem(
+                        qori = qori,
+                        isSelected = qori.idReciter == selectedQoriId,
+                        onClick = { onQoriSelected(qori.idReciter) }
+                    )
                 }
             }
         }
         
-        // Placeholder for other audio features
         item {
              Spacer(modifier = Modifier.height(24.dp))
              Text(
-                text = "Popular Surahs",
+                text = "Surah List",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
-            // Just some placeholders to make screen look full
-             repeat(3) {
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).height(60.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f))
-                ) { }
-            }
+        }
+
+        items(allSurahs) { surah ->
+            AudioSurahItem(
+                surah = surah,
+                isPlaying = surah.surahNo == currentPlayingSurah,
+                onPlayClick = { onPlaySurah(surah.surahNo) }
+            )
         }
     }
 }
 
 @Composable
-fun QoriItem(qori: QoriEntity) {
+fun QoriItem(
+    qori: QoriEntity,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 8.dp else 4.dp),
         modifier = Modifier
             .width(140.dp)
             .height(180.dp)
-            .clickable { /* Handle click */ }
+            .clickable { onClick() }
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            AsyncImage(
-                model = qori.photoUrl ?: "https://ui-avatars.com/api/?name=${qori.reciterName}&background=random",
-                contentDescription = qori.reciterName,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .background(Color.Gray)
-            )
+            Box(modifier = Modifier.height(120.dp).fillMaxWidth()) {
+                AsyncImage(
+                    model = qori.photoUrl ?: "https://ui-avatars.com/api/?name=${qori.reciterName}&background=random",
+                    contentDescription = qori.reciterName,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().background(Color.Gray)
+                )
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .size(24.dp)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            .align(Alignment.TopEnd),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Selected",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
             
             Box(
                 modifier = Modifier
@@ -306,11 +350,82 @@ fun QoriItem(qori: QoriEntity) {
             ) {
                 Text(
                     text = qori.reciterName,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
+                    ),
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AudioSurahItem(
+    surah: SurahEntity,
+    isPlaying: Boolean,
+    onPlayClick: () -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Left Side: Number & Name
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Text(
+                        text = "${surah.surahNo}",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column {
+                    Text(
+                        text = surah.surahName,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "${surah.revelationPlace} • ${surah.totalAyah} Ayats",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Right Side: Play Button
+            IconButton(
+                onClick = onPlayClick,
+                colors = IconButtonDefaults.iconButtonColors(
+                    contentColor = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Close else Icons.Default.PlayArrow, // Using Close (or Stop) for playing state to toggle off
+                    contentDescription = if (isPlaying) "Stop" else "Play",
+                    modifier = Modifier.size(32.dp)
                 )
             }
         }
