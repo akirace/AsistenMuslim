@@ -87,7 +87,7 @@ fun QuranScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val qoriList by viewModel.qoriList.collectAsState()
     val selectedQoriId by viewModel.selectedQoriId.collectAsState()
-    val currentPlayingSurah by viewModel.currentPlayingSurah.collectAsState()
+    val playbackState by viewModel.playbackState.collectAsState()
     val allSurahs by viewModel.allSurahs.collectAsState()
 
     val tabs = listOf("Qur'an", "Qur'an Audio", "Baca")
@@ -149,7 +149,7 @@ fun QuranScreen(
                     qoriList = qoriList,
                     selectedQoriId = selectedQoriId,
                     allSurahs = allSurahs,
-                    currentPlayingSurah = currentPlayingSurah,
+                    playbackState = playbackState,
                     onQoriSelected = { viewModel.onSelectQori(it) },
                     onPlaySurah = { viewModel.playAudio(it) }
                 )
@@ -174,12 +174,27 @@ fun SurahListContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            placeholder = { Text("Cari surah atau nomor...", style = MaterialTheme.typography.bodyMedium) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            placeholder = {
+                Text(
+                    "Cari surah atau nomor...",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { onSearchQueryChange("") }) {
-                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Clear",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             },
@@ -197,16 +212,26 @@ fun SurahListContent(
         Box(modifier = Modifier.weight(1f)) {
             when (val state = uiState) {
                 is QuranUiState.Loading -> {
-                    LazyColumn(contentPadding = PaddingValues(bottom = 16.dp, start = 16.dp, end = 16.dp)) {
+                    LazyColumn(
+                        contentPadding = PaddingValues(
+                            bottom = 16.dp,
+                            start = 16.dp,
+                            end = 16.dp
+                        )
+                    ) {
                         items(10) {
                             ShimmerSurahItem()
                             Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
                 }
+
                 is QuranUiState.Success -> {
                     if (state.surahs.isEmpty() && searchQuery.isNotEmpty()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(
                                 "Surah tidak ditemukan",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -214,7 +239,13 @@ fun SurahListContent(
                             )
                         }
                     } else {
-                        LazyColumn(contentPadding = PaddingValues(bottom = 16.dp, start = 16.dp, end = 16.dp)) {
+                        LazyColumn(
+                            contentPadding = PaddingValues(
+                                bottom = 16.dp,
+                                start = 16.dp,
+                                end = 16.dp
+                            )
+                        ) {
                             items(state.surahs) { surah ->
                                 SurahItem(
                                     surah = surah,
@@ -225,6 +256,7 @@ fun SurahListContent(
                         }
                     }
                 }
+
                 is QuranUiState.Error -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
@@ -239,12 +271,13 @@ fun SurahListContent(
     }
 }
 
+
 @Composable
 fun QuranAudioScreen(
     qoriList: List<QoriEntity>,
     selectedQoriId: String,
     allSurahs: List<SurahEntity>,
-    currentPlayingSurah: Int?,
+    playbackState: AudioPlaybackState,
     onQoriSelected: (String) -> Unit,
     onPlaySurah: (Int) -> Unit
 ) {
@@ -287,9 +320,14 @@ fun QuranAudioScreen(
         }
 
         items(allSurahs) { surah ->
+            // Determine state for this specific surah
+            val isPlaying = playbackState is AudioPlaybackState.Playing && (playbackState as AudioPlaybackState.Playing).surahNo == surah.surahNo
+            val isLoading = playbackState is AudioPlaybackState.Loading && (playbackState as AudioPlaybackState.Loading).surahNo == surah.surahNo
+            
             AudioSurahItem(
                 surah = surah,
-                isPlaying = surah.surahNo == currentPlayingSurah,
+                isPlaying = isPlaying,
+                isLoading = isLoading,
                 onPlayClick = { onPlaySurah(surah.surahNo) }
             )
         }
@@ -367,12 +405,17 @@ fun QoriItem(
 fun AudioSurahItem(
     surah: SurahEntity,
     isPlaying: Boolean,
+    isLoading: Boolean,
     onPlayClick: () -> Unit
 ) {
+    val borderColor = if (isPlaying) MaterialTheme.colorScheme.primary else Color.Transparent
+    val borderWidth = if (isPlaying) 2.dp else 0.dp
+
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(borderWidth, borderColor),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
@@ -416,17 +459,26 @@ fun AudioSurahItem(
             }
 
             // Right Side: Play Button
+            // Right Side: Play Button with state
             IconButton(
                 onClick = onPlayClick,
                 colors = IconButtonDefaults.iconButtonColors(
                     contentColor = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Close else Icons.Default.PlayArrow, // Using Close (or Stop) for playing state to toggle off
-                    contentDescription = if (isPlaying) "Stop" else "Play",
-                    modifier = Modifier.size(32.dp)
-                )
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Close else Icons.Default.PlayArrow, // Using Close/Pause icon for active state
+                        contentDescription = if (isPlaying) "Stop" else "Play",
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
         }
     }

@@ -23,6 +23,13 @@ sealed class QuranUiState {
     data class Error(val message: String) : QuranUiState()
 }
 
+sealed interface AudioPlaybackState {
+    object Idle : AudioPlaybackState
+    data class Loading(val surahNo: Int) : AudioPlaybackState
+    data class Playing(val surahNo: Int) : AudioPlaybackState
+    // Paused could be added later if needed
+}
+
 class QuranViewModel(
     private val repository: QuranRepository,
     private val qoriRepository: QoriRepository
@@ -35,12 +42,11 @@ class QuranViewModel(
     private val _qoriList = MutableStateFlow<List<QoriEntity>>(emptyList())
     val qoriList: StateFlow<List<QoriEntity>> = _qoriList.asStateFlow()
 
-    // Audio Playback State
     private val _selectedQoriId = MutableStateFlow("1")
     val selectedQoriId: StateFlow<String> = _selectedQoriId.asStateFlow()
 
-    private val _currentPlayingSurah = MutableStateFlow<Int?>(null)
-    val currentPlayingSurah: StateFlow<Int?> = _currentPlayingSurah.asStateFlow()
+    private val _playbackState = MutableStateFlow<AudioPlaybackState>(AudioPlaybackState.Idle)
+    val playbackState: StateFlow<AudioPlaybackState> = _playbackState.asStateFlow()
 
     private var mediaPlayer: MediaPlayer? = null
 
@@ -94,53 +100,64 @@ class QuranViewModel(
     }
 
     fun playAudio(surahNo: Int) {
-        // If clicking the same surah that is playing, toggle (stop)
-        if (_currentPlayingSurah.value == surahNo) {
+        // Toggle off if clicking same surah that is currently playing or loading
+        val currentState = _playbackState.value
+        if (currentState is AudioPlaybackState.Playing && currentState.surahNo == surahNo) {
             stopAudio()
             return
         }
+        if (currentState is AudioPlaybackState.Loading && currentState.surahNo == surahNo) {
+             stopAudio()
+             return
+        }
 
         stopAudio() // Stop any previous
-        _currentPlayingSurah.value = surahNo // Set loading/playing state indicator
+        _playbackState.value = AudioPlaybackState.Loading(surahNo)
 
         viewModelScope.launch {
             val result = repository.getSurahDetail(surahNo)
             result.onSuccess { detail ->
+                // Check if we are still in loading state for this surah (user might have stopped)
+                val current = _playbackState.value
+                if (current !is AudioPlaybackState.Loading || current.surahNo != surahNo) {
+                    return@onSuccess
+                }
+
                 val qoriId = _selectedQoriId.value
-                // Fallback to "1" if selected not found, though UI should prevent this
                 val audioUrl = detail.audio[qoriId]?.url ?: detail.audio["1"]?.url
                 
                 if (audioUrl != null) {
-                    playUrl(audioUrl)
+                    playUrl(audioUrl, surahNo)
                 } else {
-                    _currentPlayingSurah.value = null // Reset if url not found
+                    _playbackState.value = AudioPlaybackState.Idle
                     // Could expose error state here
                 }
             }.onFailure {
-                _currentPlayingSurah.value = null
+                _playbackState.value = AudioPlaybackState.Idle
             }
         }
     }
 
-    private fun playUrl(url: String) {
+    private fun playUrl(url: String, surahNo: Int) {
         try {
             mediaPlayer = MediaPlayer().apply {
                 setDataSource(url)
-                prepareAsync()
+                prepareAsync() // We are already in Loading state
                 setOnPreparedListener { mp ->
                     mp.start()
+                    _playbackState.value = AudioPlaybackState.Playing(surahNo)
                 }
                 setOnCompletionListener {
-                    _currentPlayingSurah.value = null
+                    _playbackState.value = AudioPlaybackState.Idle
                 }
                 setOnErrorListener { _, _, _ ->
-                    _currentPlayingSurah.value = null
+                    _playbackState.value = AudioPlaybackState.Idle
                     true
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            _currentPlayingSurah.value = null
+            _playbackState.value = AudioPlaybackState.Idle
         }
     }
 
@@ -152,7 +169,7 @@ class QuranViewModel(
             e.printStackTrace()
         }
         mediaPlayer = null
-        _currentPlayingSurah.value = null
+        _playbackState.value = AudioPlaybackState.Idle
     }
 
     override fun onCleared() {
