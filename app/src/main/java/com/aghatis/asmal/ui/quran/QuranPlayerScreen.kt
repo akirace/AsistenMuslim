@@ -1,21 +1,13 @@
 package com.aghatis.asmal.ui.quran
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -28,11 +20,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import androidx.navigation.NavController
 import com.airbnb.lottie.compose.LottieAnimation
@@ -40,7 +29,6 @@ import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.aghatis.asmal.R
-import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -86,7 +74,7 @@ fun QuranPlayerScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF1E1E1E)) // Dark background to match reference
+            .background(MaterialTheme.colorScheme.surface) // Theme-aware background
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -97,11 +85,11 @@ fun QuranPlayerScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { navController.popBackStack() }) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
             }
-            Text("Now Playing", color = Color.Gray, style = MaterialTheme.typography.titleMedium)
+            Text("Now Playing", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
             IconButton(onClick = { /* Menu */ }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "Menu", tint = Color.White)
+                Icon(Icons.Default.MoreVert, contentDescription = "Menu", tint = MaterialTheme.colorScheme.onSurface)
             }
         }
 
@@ -150,9 +138,9 @@ fun QuranPlayerScreen(
                             .background(
                                 Brush.linearGradient(
                                     colors = listOf(
-                                        Color(0xFF6B7FD7), // Muted Purple
-                                        Color(0xFF4ACFAC)  // Teal
-                                    ),
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                ),
                                     start = Offset.Zero,
                                     end = Offset.Infinite
                                 )
@@ -171,12 +159,12 @@ fun QuranPlayerScreen(
         Text(
             text = currentSurah?.surahName ?: "Loading...",
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-            color = Color.White
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             text = currentQori?.reciterName ?: "Unknown Reciter",
             style = MaterialTheme.typography.bodyLarge,
-            color = Color.Gray,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp)
         )
 
@@ -189,14 +177,14 @@ fun QuranPlayerScreen(
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             IconButton(onClick = { /* Shuffle */ }) {
-                Icon(Icons.Default.Shuffle, contentDescription = "Shuffle", tint = Color(0xFF4ACFAC))
+                Icon(Icons.Default.Shuffle, contentDescription = "Shuffle", tint = MaterialTheme.colorScheme.primary)
             }
             
             IconButton(onClick = { viewModel.playPreviousSurah() }, modifier = Modifier.size(48.dp)) {
                 Icon(
                     imageVector = Icons.Default.SkipPrevious,
                     contentDescription = "Previous",
-                    tint = Color(0xFF4ACFAC),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(36.dp)
                 )
             }
@@ -206,14 +194,14 @@ fun QuranPlayerScreen(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF2A2A2A))
+                    .background(MaterialTheme.colorScheme.primaryContainer)
                     .clickable { viewModel.togglePlayPause() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = "Play/Pause",
-                    tint = Color(0xFF4ACFAC), // Greenish/Teal accent
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(40.dp)
                 )
             }
@@ -222,13 +210,13 @@ fun QuranPlayerScreen(
                 Icon(
                     imageVector = Icons.Default.SkipNext,
                     contentDescription = "Next",
-                    tint = Color(0xFF4ACFAC),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(36.dp)
                 )
             }
 
             IconButton(onClick = { /* Repeat */ }) {
-                Icon(Icons.Default.Repeat, contentDescription = "Repeat", tint = Color.Gray)
+                Icon(Icons.Default.Repeat, contentDescription = "Repeat", tint = MaterialTheme.colorScheme.outline)
             }
         }
         
@@ -240,6 +228,9 @@ fun CircularProgress(
     progress: Float,
     onProgressChanged: (Float) -> Unit
 ) {
+    val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    val progressColor = MaterialTheme.colorScheme.primary
+    
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableStateOf(0f) }
 
@@ -275,7 +266,7 @@ fun CircularProgress(
 
             // Track
             drawCircle(
-                color = Color.Gray.copy(alpha = 0.3f),
+                color = trackColor,
                 radius = r,
                 style = Stroke(width = strokeWidth)
             )
@@ -283,7 +274,7 @@ fun CircularProgress(
             // Progress Arc
             // We want start from top (-90 deg)
             drawArc(
-                color = Color(0xFF4ACFAC), // Teal accent
+                color = progressColor,
                 startAngle = -90f,
                 sweepAngle = displayProgress * 360f,
                 useCenter = false,
@@ -297,7 +288,7 @@ fun CircularProgress(
             val knobY = center.y + r * sin(angleRad).toFloat()
 
             drawCircle(
-                color = Color(0xFF4ACFAC),
+                color = progressColor,
                 radius = 6.dp.toPx(),
                 center = Offset(knobX, knobY)
             )

@@ -401,6 +401,7 @@ fun HomeHeaderSection(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
                      Column(modifier = Modifier.padding(vertical = 16.dp, horizontal = 8.dp)) {
@@ -619,6 +620,7 @@ fun PrayerTimeItem(
                 .height(140.dp) // Fixed height for uniformity
                 .clickable(onClick = onClick),
             shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp), // Initial elevation
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
@@ -748,6 +750,7 @@ fun PrayerTimeItem(
                 .animateContentSize(spring(stiffness = Spring.StiffnessLow)),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(
@@ -894,6 +897,7 @@ fun PrayerTimeItem(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Row(
@@ -945,7 +949,8 @@ fun PrayerTimeItem(
                 containerColor = MaterialTheme.colorScheme.errorContainer.copy(
                     alpha = 0.5f
                 )
-            )
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),
@@ -1262,7 +1267,7 @@ fun PrayerTimeItem(
                         
                         val borderStroke = when {
                             isNext -> BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-                            else -> null
+                            else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         }
                         
                         val contentColor = when {
@@ -1376,6 +1381,7 @@ fun DailyProgressCard(
         modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -1484,6 +1490,7 @@ fun DateNavigatorCard(
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
