@@ -40,55 +40,29 @@ import kotlinx.coroutines.launch
 @Composable
 fun QuranScreen(
     navController: NavController,
+    viewModel: QuranViewModel? = null
 ) {
     val context = LocalContext.current
-    val repository = remember { QuranRepository(context) }
-    // Instantiate QoriRepository using database from QuranRepository (shared db preferred, but for now new instance via context)
-    // Note: Best practice is dependency injection or shared DB instance. 
-    // Assuming AppDatabase is singleton or cheap, or extracting DB access.
-    // For now, let's assume we can get it via context similarly to QuranRepository internal.
-    // Ideally we should refactor QuranRepository to take DB or Context and separate DAO.
-    // For this specific task, we'll follow existing pattern but create QoriRepository.
     
-    // We need to access the database instance. Since QuranRepository creates its own private DB instance, 
-    // we should ideally expose it or create a singleton AppDatabase.
-    // Blocked by private db in QuranRepository. 
-    // Workaround: Create new QoriRepository that also creates DB instance (not optimal for consistency but works for separation)
-    // OR: Modify QuranRepository to expose DB or be Singleton.
-    // Seeing QuranRepository creates DB in init: 
-    // private val db = androidx.room.Room.databaseBuilder(...).build()
-    
-    // Let's create QoriRepository similar to QuranRepository structure for now, 
-    // passing Context and letting it create its own DB ref or use a shared one in future refactor.
-    // Wait, QoriRepository takes QoriDao. 
-    // So we need to create DB here or inside a factory helper.
-    
-    // Let's Quick Fix: Create a helper to get database since we are in Composable.
-    val db = remember { 
-         androidx.room.Room.databaseBuilder(
-            context.applicationContext,
-            com.aghatis.asmal.data.local.AppDatabase::class.java, "asmal-db"
-        ).fallbackToDestructiveMigration().build()
+    // Use passed viewModel or create a new one (singleton pattern preferred in NavGraph)
+    val actualViewModel = viewModel ?: run {
+        val repository = remember { QuranRepository(context) }
+        val db = remember { 
+             androidx.room.Room.databaseBuilder(
+                context.applicationContext,
+                com.aghatis.asmal.data.local.AppDatabase::class.java, "asmal-db"
+            ).fallbackToDestructiveMigration().build()
+        }
+        val qoriRepository = remember { com.aghatis.asmal.data.repository.QoriRepository(db.qoriDao()) }
+        viewModel(factory = QuranViewModel.Factory(repository, qoriRepository))
     }
     
-    val qoriRepository = remember { com.aghatis.asmal.data.repository.QoriRepository(db.qoriDao()) }
-    
-    // We also need separate QuranRepository that ideally shares this DB, but existing one creates its own.
-    // To avoid DB open conflict or resource waste, we should ideally use the same DB.
-    // But modifying QuranRepository deeply might be risky without viewing it all. 
-    // Let's use the new db instance for Qori, and let QuranRepository keep its own for now (sqlite supports multiple open connections usually, though singleton recommended).
-    // Better yet: Pass db to QuranRepository if possible? No, constructor takes Context.
-    
-    val viewModel: QuranViewModel = viewModel(
-        factory = QuranViewModel.Factory(repository, qoriRepository)
-    )
-    
-    val uiState by viewModel.uiState.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    val qoriList by viewModel.qoriList.collectAsState()
-    val selectedQoriId by viewModel.selectedQoriId.collectAsState()
-    val playbackState by viewModel.playbackState.collectAsState()
-    val allSurahs by viewModel.allSurahs.collectAsState()
+    val uiState by actualViewModel.uiState.collectAsState()
+    val searchQuery by actualViewModel.searchQuery.collectAsState()
+    val qoriList by actualViewModel.qoriList.collectAsState()
+    val selectedQoriId by actualViewModel.selectedQoriId.collectAsState()
+    val playbackState by actualViewModel.playbackState.collectAsState()
+    val allSurahs by actualViewModel.allSurahs.collectAsState()
 
     val tabs = listOf("Qur'an", "Qur'an Audio", "Baca")
     val pagerState = androidx.compose.foundation.pager.rememberPagerState { tabs.size }
@@ -140,7 +114,7 @@ fun QuranScreen(
                 0 -> SurahListContent(
                     uiState = uiState,
                     searchQuery = searchQuery,
-                    onSearchQueryChange = { viewModel.onSearchQueryChange(it) },
+                    onSearchQueryChange = { actualViewModel.onSearchQueryChange(it) },
                     onSurahClick = { surahNo ->
                         navController.navigate("quran_detail/$surahNo")
                     }
@@ -150,8 +124,11 @@ fun QuranScreen(
                     selectedQoriId = selectedQoriId,
                     allSurahs = allSurahs,
                     playbackState = playbackState,
-                    onQoriSelected = { viewModel.onSelectQori(it) },
-                    onPlaySurah = { viewModel.playAudio(it) }
+                    onQoriSelected = { actualViewModel.onSelectQori(it) },
+                    onPlaySurah = { surahNo ->
+                        // Navigate to Player Screen
+                        navController.navigate("quran_player/$surahNo")
+                    }
                 )
                 2 -> TerakhirBacaScreen()
             }
@@ -419,6 +396,7 @@ fun AudioSurahItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clickable { onPlayClick() } // Make whole card clickable
     ) {
         Row(
             modifier = Modifier
@@ -460,25 +438,20 @@ fun AudioSurahItem(
 
             // Right Side: Play Button
             // Right Side: Play Button with state
-            IconButton(
-                onClick = onPlayClick,
-                colors = IconButtonDefaults.iconButtonColors(
-                    contentColor = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            // Play status indicator
+            if (isPlaying) {
+                 Icon(
+                    imageVector = Icons.Default.GraphicEq, 
+                    contentDescription = "Playing",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
                 )
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Close else Icons.Default.PlayArrow, // Using Close/Pause icon for active state
-                        contentDescription = if (isPlaying) "Stop" else "Play",
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
+            } else if (isLoading) {
+                 CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }

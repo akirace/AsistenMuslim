@@ -69,6 +69,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.lottie.compose)
     implementation(libs.coil.compose)
     implementation(libs.retrofit)
     implementation(libs.converter.gson)

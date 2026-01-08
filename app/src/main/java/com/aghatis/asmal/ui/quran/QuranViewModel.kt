@@ -48,7 +48,21 @@ class QuranViewModel(
     private val _playbackState = MutableStateFlow<AudioPlaybackState>(AudioPlaybackState.Idle)
     val playbackState: StateFlow<AudioPlaybackState> = _playbackState.asStateFlow()
 
+    // Player specific states
+    private val _playbackProgress = MutableStateFlow(0f) // 0.0 to 1.0
+    val playbackProgress: StateFlow<Float> = _playbackProgress.asStateFlow()
+    
+    private val _currentDuration = MutableStateFlow(0)
+    val currentDuration: StateFlow<Int> = _currentDuration.asStateFlow()
+    
+    private val _currentPosition = MutableStateFlow(0)
+    val currentPosition: StateFlow<Int> = _currentPosition.asStateFlow()
+
+    private val _isPlaying = MutableStateFlow(false)
+    val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
+
     private var mediaPlayer: MediaPlayer? = null
+    private var progressJob: kotlinx.coroutines.Job? = null
 
     private val _allSurahs = MutableStateFlow<List<SurahEntity>>(emptyList())
 
@@ -99,25 +113,70 @@ class QuranViewModel(
         stopAudio()
     }
 
+    fun togglePlayPause() {
+        mediaPlayer?.let { mp ->
+            if (mp.isPlaying) {
+                mp.pause()
+                _isPlaying.value = false
+                stopProgressUpdate()
+                // Update state to Paused if we had a Paused state, or just keep Playing but isPlaying=false
+            } else {
+                mp.start()
+                _isPlaying.value = true
+                startProgressUpdate()
+            }
+        }
+    }
+
+    fun playNextSurah() {
+        val currentSurahNo = (_playbackState.value as? AudioPlaybackState.Playing)?.surahNo 
+            ?: (_playbackState.value as? AudioPlaybackState.Loading)?.surahNo 
+            ?: return
+            
+        val nextSurahNo = currentSurahNo + 1
+        if (nextSurahNo <= 114) {
+            playAudio(nextSurahNo)
+        }
+    }
+
+    fun playPreviousSurah() {
+         val currentSurahNo = (_playbackState.value as? AudioPlaybackState.Playing)?.surahNo 
+            ?: (_playbackState.value as? AudioPlaybackState.Loading)?.surahNo 
+            ?: return
+            
+        val prevSurahNo = currentSurahNo - 1
+        if (prevSurahNo >= 1) {
+            playAudio(prevSurahNo)
+        }
+    }
+
+    fun seekTo(progress: Float) {
+        mediaPlayer?.let { mp ->
+            val newPos = (mp.duration * progress).toInt()
+            mp.seekTo(newPos)
+            _currentPosition.value = newPos
+            _playbackProgress.value = progress
+        }
+    }
+
     fun playAudio(surahNo: Int) {
-        // Toggle off if clicking same surah that is currently playing or loading
+        // If clicking the same surah that is playing
         val currentState = _playbackState.value
         if (currentState is AudioPlaybackState.Playing && currentState.surahNo == surahNo) {
-            stopAudio()
+            // Do nothing if already playing, maybe open player? 
+            // The UI will handle navigation.
             return
         }
-        if (currentState is AudioPlaybackState.Loading && currentState.surahNo == surahNo) {
-             stopAudio()
-             return
-        }
-
+        
         stopAudio() // Stop any previous
         _playbackState.value = AudioPlaybackState.Loading(surahNo)
+        _isPlaying.value = false
+        _playbackProgress.value = 0f
 
         viewModelScope.launch {
             val result = repository.getSurahDetail(surahNo)
             result.onSuccess { detail ->
-                // Check if we are still in loading state for this surah (user might have stopped)
+                // Check if we are still in loading state for this surah
                 val current = _playbackState.value
                 if (current !is AudioPlaybackState.Loading || current.surahNo != surahNo) {
                     return@onSuccess
@@ -130,7 +189,6 @@ class QuranViewModel(
                     playUrl(audioUrl, surahNo)
                 } else {
                     _playbackState.value = AudioPlaybackState.Idle
-                    // Could expose error state here
                 }
             }.onFailure {
                 _playbackState.value = AudioPlaybackState.Idle
@@ -142,26 +200,64 @@ class QuranViewModel(
         try {
             mediaPlayer = MediaPlayer().apply {
                 setDataSource(url)
-                prepareAsync() // We are already in Loading state
+                prepareAsync()
                 setOnPreparedListener { mp ->
                     mp.start()
                     _playbackState.value = AudioPlaybackState.Playing(surahNo)
+                    _isPlaying.value = true
+                    _currentDuration.value = mp.duration
+                    startProgressUpdate()
                 }
                 setOnCompletionListener {
                     _playbackState.value = AudioPlaybackState.Idle
+                    _isPlaying.value = false
+                    stopProgressUpdate()
+                    _playbackProgress.value = 1f
+                    // Auto play next? User didn't specify, but standard player behavior usually does.
+                    // For now, stop.
                 }
                 setOnErrorListener { _, _, _ ->
                     _playbackState.value = AudioPlaybackState.Idle
+                    _isPlaying.value = false
+                    stopProgressUpdate()
                     true
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
             _playbackState.value = AudioPlaybackState.Idle
+            _isPlaying.value = false
         }
     }
 
+    private fun startProgressUpdate() {
+        stopProgressUpdate()
+        progressJob = viewModelScope.launch {
+            while (true) {
+                mediaPlayer?.let { mp ->
+                     if (mp.isPlaying) {
+                         val current = mp.currentPosition
+                         val total = mp.duration
+                         if (total > 0) {
+                             _currentPosition.value = current
+                             _playbackProgress.value = current.toFloat() / total.toFloat()
+                         }
+                     }
+                }
+                kotlinx.coroutines.delay(100)
+            }
+        }
+    }
+
+    private fun stopProgressUpdate() {
+        progressJob?.cancel()
+        progressJob = null
+    }
+
     private fun stopAudio() {
+        stopProgressUpdate()
+        _isPlaying.value = false
+        _playbackProgress.value = 0f
         try {
             mediaPlayer?.stop()
             mediaPlayer?.release()

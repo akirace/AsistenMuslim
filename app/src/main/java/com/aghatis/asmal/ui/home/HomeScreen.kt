@@ -47,6 +47,8 @@ import com.aghatis.asmal.data.repository.PrayerRepository
 import com.aghatis.asmal.data.repository.PrefsRepository
 import com.aghatis.asmal.utils.PrayerTimeUtils
 import android.media.MediaPlayer
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1128,16 +1130,18 @@ fun PrayerTimeItem(
         selectedDate: String,
         onToggle: (String, Boolean) -> Unit
     ) {
-        var expanded by remember { mutableStateOf(false) }
         val context = LocalContext.current
+        
+        // Find next prayer logic for highlighting
+        val nextPrayerPair = remember(prayerData) {
+            prayerData?.let { PrayerTimeUtils.getNextPrayer(it.times) }
+        }
 
         // Date Validation Logic
         val isTodayOrPast = remember(selectedDate) {
             val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
             val date = sdf.parse(selectedDate) ?: java.util.Date()
             val today = java.util.Date()
-            // Determine relationship: 0=today, <0=past, >0=future (roughly)
-            // Simplification: compare strings if format is fixed
             val todayStr = sdf.format(today)
             selectedDate <= todayStr
         }
@@ -1148,159 +1152,206 @@ fun PrayerTimeItem(
             selectedDate < todayStr
         }
 
-        // Find next prayer or current active one
-        val nextPrayerPair = remember(prayerData) {
-            prayerData?.let { PrayerTimeUtils.getNextPrayer(it.times) }
-        }
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .animateContentSize(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        Column(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                // Header Section
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { expanded = !expanded },
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Tracker Ibadah",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        if (!expanded && nextPrayerPair != null) {
-                            Text(
-                                text = "Yuk, persiapkan sholat ${nextPrayerPair.first}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    Icon(
-                        imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                        contentDescription = "Expand",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+            // Header with more breathing room
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "Ibadah Harian",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 22.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "Jaga sholat tepat waktu",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                
+                // Optional: Progress pill or icon
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                   Row(
+                       modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                       verticalAlignment = Alignment.CenterVertically
+                   ) {
+                       Icon(
+                           imageVector = Icons.Filled.CheckCircle,
+                           contentDescription = null,
+                           tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                           modifier = Modifier.size(16.dp)
+                       )
+                       Spacer(modifier = Modifier.width(4.dp))
+                       val completed = listOf(
+                           prayerLog.fajr, prayerLog.dhuhr, prayerLog.asr, prayerLog.maghrib, prayerLog.isha
+                       ).count { it }
+                       Text(
+                           text = "$completed/5",
+                           style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                           color = MaterialTheme.colorScheme.onPrimaryContainer
+                       )
+                   }
+                }
+            }
 
-                if (expanded) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    Spacer(modifier = Modifier.height(16.dp))
+            if (prayerData == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                }
+            } else {
+                val prayers = listOf(
+                    Triple("Subuh", "fajr", prayerData.times.fajr),
+                    Triple("Dzuhur", "dhuhr", prayerData.times.dhuhr),
+                    Triple("Ashar", "asr", prayerData.times.asr),
+                    Triple("Maghrib", "maghrib", prayerData.times.maghrib),
+                    Triple("Isya", "isha", prayerData.times.isha)
+                )
 
-                    if (prayerData == null) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(prayers) { (label, key, time) ->
+                        val isChecked = when (key) {
+                            "fajr" -> prayerLog.fajr
+                            "dhuhr" -> prayerLog.dhuhr
+                            "asr" -> prayerLog.asr
+                            "maghrib" -> prayerLog.maghrib
+                            "isha" -> prayerLog.isha
+                            else -> false
                         }
-                    } else {
-                        val prayers = listOf(
-                            Triple("Subuh", "fajr", prayerData.times.fajr),
-                            Triple("Dzuhur", "dhuhr", prayerData.times.dhuhr),
-                            Triple("Ashar", "asr", prayerData.times.asr),
-                            Triple("Maghrib", "maghrib", prayerData.times.maghrib),
-                            Triple("Isya", "isha", prayerData.times.isha)
-                        )
 
-                        prayers.forEachIndexed { index, (label, key, time) ->
-                            val isChecked = when (key) {
-                                "fajr" -> prayerLog.fajr
-                                "dhuhr" -> prayerLog.dhuhr
-                                "asr" -> prayerLog.asr
-                                "maghrib" -> prayerLog.maghrib
-                                "isha" -> prayerLog.isha
-                                else -> false
-                            }
+                        val isTimePassed = remember(time, isStrictlyPast, isTodayOrPast) {
+                            if (isStrictlyPast) true
+                            else if (!isTodayOrPast) false // Future date
+                            else PrayerTimeUtils.hasTimePassed(time) // Today
+                        }
+                        
+                        val isNext = nextPrayerPair?.first == key
+                        
+                        // Interaction Logic
+                        val checkEnabled = isTimePassed
+                        
+                        // Card Styling Logic
+                        val cardBg = when {
+                            isChecked -> MaterialTheme.colorScheme.primaryContainer
+                            isNext -> MaterialTheme.colorScheme.surface
+                            else -> MaterialTheme.colorScheme.surface
+                        }
+                        
+                        val borderStroke = when {
+                            isNext -> BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                            else -> null
+                        }
+                        
+                        val contentColor = when {
+                            isChecked -> MaterialTheme.colorScheme.onPrimaryContainer
+                            else -> MaterialTheme.colorScheme.onSurface
+                        }
 
-                            val isTimePassed = remember(time, isStrictlyPast, isTodayOrPast) {
-                                if (isStrictlyPast) true
-                                else if (!isTodayOrPast) false // Future date
-                                else PrayerTimeUtils.hasTimePassed(time) // Today
-                            }
-
-                            // Styling for state
-                            val textColor =
-                                if (isTimePassed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                    alpha = 0.6f
-                                )
-                            val checkEnabled = isTimePassed
-
-                            Row(
+                        Card(
+                            modifier = Modifier
+                                .width(100.dp) // Fixed functional width
+                                .clickable(enabled = checkEnabled) {
+                                    onToggle(key, !isChecked)
+                                },
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(containerColor = cardBg),
+                            border = borderStroke,
+                            elevation = CardDefaults.cardElevation(
+                                defaultElevation = if (isNext) 4.dp else 0.dp
+                            )
+                        ) {
+                            Column(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        if (checkEnabled) {
-                                            onToggle(key, !isChecked)
-                                        } else {
-                                            Toast.makeText(
-                                                context,
-                                                "Belum masuk waktunya",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
-                                    }
-                                    .padding(vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(vertical = 16.dp, horizontal = 12.dp)
+                                    .fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Column {
-                                    Text(
-                                        text = label,
-                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                                        color = textColor
-                                    )
-                                    Text(
-                                        text = time,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = if (isTimePassed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                            alpha = 0.4f
+                                // Time
+                                Text(
+                                    text = time,
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = contentColor.copy(alpha = 0.8f)
+                                )
+                                
+                                // Label
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    color = contentColor
+                                )
+                                
+                                // Custom Check Button
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (isChecked) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) // Subtle background when unchecked
                                         )
-                                    )
+                                        .border(
+                                            width = 2.dp,
+                                            color = if (isChecked) MaterialTheme.colorScheme.primary
+                                            else if (isNext) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                            shape = CircleShape
+                                        )
+                                        .clickable { 
+                                            // Handle click on button specifically if needed, 
+                                            // but card click handles it too. Double logic is fine or remove one.
+                                            // Let's keep card click for better UX.
+                                            if (!checkEnabled) {
+                                                Toast.makeText(context, "Belum masuk waktunya", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                onToggle(key, !isChecked)
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    androidx.compose.animation.AnimatedVisibility(
+                                        visible = isChecked,
+                                        enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(),
+                                        exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Check,
+                                            contentDescription = "Done",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 }
-
-                                Checkbox(
-                                    checked = isChecked,
-                                    onCheckedChange = {
-                                        if (checkEnabled) {
-                                            onToggle(key, it)
-                                        } else {
-                                            Toast.makeText(
-                                                context,
-                                                "Belum masuk waktunya",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
-                                    },
-                                    enabled = true, // We handle "enabled" logic manually to allow click for Toast
-                                    colors = CheckboxDefaults.colors(
-                                        checkedColor = MaterialTheme.colorScheme.primary,
-                                        uncheckedColor = if (isTimePassed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                            alpha = 0.4f
-                                        )
-                                    )
-                                )
-                            }
-                            if (index < prayers.lastIndex) {
-                                HorizontalDivider(
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(
-                                        alpha = 0.2f
-                                    )
-                                )
                             }
                         }
                     }
-                } else {
-                    // Collapsed View Content (Optional specific UI if needed besides header)
                 }
             }
         }
