@@ -36,10 +36,17 @@ class QuranDetailViewModel(
     private val _audioState = MutableStateFlow<AudioState>(AudioState.Idle)
     val audioState: StateFlow<AudioState> = _audioState.asStateFlow()
 
+    private val _showTranslation = MutableStateFlow(true)
+    val showTranslation: StateFlow<Boolean> = _showTranslation.asStateFlow()
+
     private var mediaPlayer: MediaPlayer? = null
 
     init {
         loadSurahDetail()
+    }
+
+    fun toggleTranslation(show: Boolean) {
+        _showTranslation.value = show
     }
 
     private fun loadSurahDetail() {

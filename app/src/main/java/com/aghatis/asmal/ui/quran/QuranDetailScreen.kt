@@ -42,6 +42,10 @@ fun QuranDetailScreen(
     )
     val uiState by viewModel.uiState.collectAsState()
     val audioState by viewModel.audioState.collectAsState()
+    val showTranslation by viewModel.showTranslation.collectAsState()
+
+    val sheetState = rememberModalBottomSheetState()
+    var showBottomSheet by remember { mutableStateOf(false) }
 
     // Handle audio error toasts
     LaunchedEffect(audioState) {
@@ -65,9 +69,23 @@ fun QuranDetailScreen(
                 SurahDetailContent(
                     surah = state.surah,
                     audioState = audioState,
+                    showTranslation = showTranslation,
                     onPlayClick = { ayahNo -> viewModel.playAyahAudio(ayahNo) },
                     onStopClick = { viewModel.stopAudio() }
                 )
+
+                if (showBottomSheet) {
+                    ModalBottomSheet(
+                        onDismissRequest = { showBottomSheet = false },
+                        sheetState = sheetState,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ) {
+                        SurahSettingsBottomSheetContent(
+                            showTranslation = showTranslation,
+                            onToggleTranslation = { viewModel.toggleTranslation(it) }
+                        )
+                    }
+                }
             }
             is QuranDetailUiState.Error -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -76,21 +94,95 @@ fun QuranDetailScreen(
             }
         }
 
-        // Floating Back Button
-        IconButton(
-            onClick = { navController.popBackStack() },
+        // Floating Header Buttons
+        Row(
             modifier = Modifier
+                .fillMaxWidth()
                 .padding(16.dp)
-                .statusBarsPadding()
-                .size(40.dp)
-                .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                .statusBarsPadding(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.ArrowBack,
-                contentDescription = "Back",
-                tint = Color.White
+            // Floating Back Button
+            IconButton(
+                onClick = { navController.popBackStack() },
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White
+                )
+            }
+
+            // Floating Setting Button
+            IconButton(
+                onClick = { showBottomSheet = true },
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = Color.White
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SurahSettingsBottomSheetContent(
+    showTranslation: Boolean,
+    onToggleTranslation: (Boolean) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp)
+            .navigationBarsPadding()
+    ) {
+        Text(
+            text = "Pengaturan",
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.primary
+        )
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Tampilkan Terjemahan",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Tampilkan teks terjemahan di bawah ayat",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = showTranslation,
+                onCheckedChange = onToggleTranslation,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                )
             )
         }
+        
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
@@ -98,6 +190,7 @@ fun QuranDetailScreen(
 fun SurahDetailContent(
     surah: SurahDetailResponse,
     audioState: AudioState,
+    showTranslation: Boolean,
     onPlayClick: (Int) -> Unit,
     onStopClick: () -> Unit
 ) {
@@ -105,13 +198,13 @@ fun SurahDetailContent(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp)
     ) {
-        // Header Card
+        // ... (unchanged header)
         item {
             SurahHeaderCard(surah = surah)
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // Bismillah Calligraphy (Placeholder/Text)
+        // ... (unchanged Bismillah)
         if (surah.surahNo != 9) {
             item {
                 Text(
@@ -139,6 +232,7 @@ fun SurahDetailContent(
                 number = ayahNo,
                 arabicText = arabicText,
                 englishText = englishText,
+                showTranslation = showTranslation,
                 isLoading = isLoading,
                 isPlaying = isPlaying,
                 onPlayToggle = {
@@ -213,12 +307,13 @@ fun AyahItem(
     number: Int,
     arabicText: String,
     englishText: String,
+    showTranslation: Boolean,
     isLoading: Boolean,
     isPlaying: Boolean,
     onPlayToggle: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Ayah Header (Number and Actions)
+        // ... (Header code unchanged)
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
@@ -285,15 +380,17 @@ fun AyahItem(
             color = MaterialTheme.colorScheme.onBackground
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        if (showTranslation) {
+            Spacer(modifier = Modifier.height(12.dp))
 
-        // English Translation
-        Text(
-            text = englishText,
-            modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+            // English Translation
+            Text(
+                text = englishText,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
         Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
