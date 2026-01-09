@@ -53,25 +53,27 @@ fun QuranPlayerScreen(
     // If we are here, we should be playing 'surahNo'.
     // Logic: If state is Idle or Playing other surah, start this one.
     
-    // Side effect to start playing if needed
-    LaunchedEffect(surahNo) {
+    // Determine the active surah number based on playback state or initial route
+    val activeSurahNo = remember(playbackState, surahNo) {
+        (playbackState as? AudioPlaybackState.Playing)?.surahNo
+            ?: (playbackState as? AudioPlaybackState.Buffering)?.surahNo
+            ?: (playbackState as? AudioPlaybackState.Loading)?.surahNo
+            ?: surahNo
+    }
+
+    // Side effect to start playing only if player is Idle or playing something else than the initial selection
+    LaunchedEffect(Unit) {
         val currentState = playbackState
-        val currentSurah = (currentState as? AudioPlaybackState.Playing)?.surahNo 
+        val currentSurahPlaying = (currentState as? AudioPlaybackState.Playing)?.surahNo 
             ?: (currentState as? AudioPlaybackState.Loading)?.surahNo
             ?: (currentState as? AudioPlaybackState.Buffering)?.surahNo
             
-        if (currentSurah != surahNo) {
+        if (currentSurahPlaying != surahNo) {
             viewModel.playAudio(surahNo)
         }
     }
 
-    val currentSurah = allSurahs.find { 
-        (playbackState as? AudioPlaybackState.Playing)?.surahNo == it.surahNo ||
-        (playbackState as? AudioPlaybackState.Loading)?.surahNo == it.surahNo ||
-        (playbackState as? AudioPlaybackState.Buffering)?.surahNo == it.surahNo ||
-        it.surahNo == surahNo // Fallback if state matches route
-    } ?: allSurahs.find { it.surahNo == surahNo }
-
+    val currentSurah = allSurahs.find { it.surahNo == activeSurahNo }
     val currentQori = qoriList.find { it.idReciter == selectedQoriId }
 
     Column(
@@ -184,11 +186,16 @@ fun QuranPlayerScreen(
                 Icon(Icons.Default.Shuffle, contentDescription = "Shuffle", tint = MaterialTheme.colorScheme.primary)
             }
             
-            IconButton(onClick = { viewModel.playPreviousSurah() }, modifier = Modifier.size(48.dp)) {
+            val isFirstSurah = (currentSurah?.surahNo ?: 1) <= 1
+            IconButton(
+                onClick = { viewModel.playPreviousSurah() }, 
+                modifier = Modifier.size(48.dp),
+                enabled = !isFirstSurah
+            ) {
                 Icon(
                     imageVector = Icons.Default.SkipPrevious,
                     contentDescription = "Previous",
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = if (isFirstSurah) MaterialTheme.colorScheme.outline.copy(alpha = 0.3f) else MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(36.dp)
                 )
             }
@@ -210,11 +217,16 @@ fun QuranPlayerScreen(
                 )
             }
 
-            IconButton(onClick = { viewModel.playNextSurah() }, modifier = Modifier.size(48.dp)) {
+            val isLastSurah = (currentSurah?.surahNo ?: 1) >= 114
+            IconButton(
+                onClick = { viewModel.playNextSurah() }, 
+                modifier = Modifier.size(48.dp),
+                enabled = !isLastSurah
+            ) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
                     contentDescription = "Next",
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = if (isLastSurah) MaterialTheme.colorScheme.outline.copy(alpha = 0.3f) else MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(36.dp)
                 )
             }
