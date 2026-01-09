@@ -9,7 +9,7 @@ import com.aghatis.asmal.data.model.toEntity
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-class QuranRepository(context: android.content.Context) {
+class QuranRepository(val context: android.content.Context) {
     private val api: QuranApi
     private val db = androidx.room.Room.databaseBuilder(
         context.applicationContext,

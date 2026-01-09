@@ -10,7 +10,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-import android.media.MediaPlayer
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 
 sealed class AudioState {
     object Idle : AudioState()
@@ -39,10 +41,35 @@ class QuranDetailViewModel(
     private val _showTranslation = MutableStateFlow(true)
     val showTranslation: StateFlow<Boolean> = _showTranslation.asStateFlow()
 
-    private var mediaPlayer: MediaPlayer? = null
+    private var exoPlayer: ExoPlayer? = null
 
     init {
         loadSurahDetail()
+        setupPlayer()
+    }
+
+    private fun setupPlayer() {
+        exoPlayer = ExoPlayer.Builder(repository.context).build().apply {
+            addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    when (playbackState) {
+                        Player.STATE_READY -> {
+                            _audioState.value = AudioState.Playing(currentAyahPlaying)
+                        }
+                        Player.STATE_ENDED -> {
+                            _audioState.value = AudioState.Idle
+                        }
+                        else -> {
+                            // Other states
+                        }
+                    }
+                }
+
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    _audioState.value = AudioState.Error(error.message ?: "Playback Error")
+                }
+            })
+        }
     }
 
     fun toggleTranslation(show: Boolean) {
@@ -62,40 +89,26 @@ class QuranDetailViewModel(
         }
     }
 
-    fun playAyahAudio(ayahNo: Int) {
-        // Stop currently playing
-        mediaPlayer?.let {
-            if (it.isPlaying) {
-                it.stop()
-            }
-            it.release()
-        }
-        mediaPlayer = null
+    private var currentAyahPlaying: Int = 0
 
+    fun playAyahAudio(ayahNo: Int) {
+        currentAyahPlaying = ayahNo
         viewModelScope.launch {
             _audioState.value = AudioState.Loading(ayahNo)
             repository.getAyah(surahNo, ayahNo)
                 .onSuccess { ayah ->
                     val url = ayah.audio["1"]?.url // Using Mishary Rashid as default
                     if (url != null) {
-                        try {
-                            mediaPlayer = MediaPlayer().apply {
-                                setDataSource(url)
-                                setOnPreparedListener {
-                                    start()
-                                    _audioState.value = AudioState.Playing(ayahNo)
-                                }
-                                setOnCompletionListener {
-                                    _audioState.value = AudioState.Idle
-                                }
-                                setOnErrorListener { _, _, _ ->
-                                    _audioState.value = AudioState.Error("Failed to play audio")
-                                    false
-                                }
-                                prepareAsync()
-                            }
-                        } catch (e: Exception) {
-                            _audioState.value = AudioState.Error(e.message ?: "Player Error")
+                        exoPlayer?.let { player ->
+                            val mediaItem = MediaItem.fromUri(url)
+                            // We use a custom "tag" to pass ayahNo to listener if needed, 
+                            // but actually we can just update state here if we want simple logic.
+                            player.setMediaItem(mediaItem)
+                            // Setting tag manually is not direct in MediaItem, but we can use metadata or just trust the call order.
+                            // Better: use the player state to update UI.
+                            // To keep it simple, we use a class var for currentAyah
+                            player.prepare()
+                            player.play()
                         }
                     } else {
                         _audioState.value = AudioState.Error("Audio URL not found")
@@ -108,20 +121,14 @@ class QuranDetailViewModel(
     }
 
     fun stopAudio() {
-        mediaPlayer?.let {
-            if (it.isPlaying) {
-                it.stop()
-            }
-            it.release()
-        }
-        mediaPlayer = null
+        exoPlayer?.stop()
         _audioState.value = AudioState.Idle
     }
 
     override fun onCleared() {
         super.onCleared()
-        mediaPlayer?.release()
-        mediaPlayer = null
+        exoPlayer?.release()
+        exoPlayer = null
     }
 
     class Factory(

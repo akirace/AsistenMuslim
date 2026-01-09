@@ -42,6 +42,7 @@ fun QuranPlayerScreen(
     val playbackState by viewModel.playbackState.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val progress by viewModel.playbackProgress.collectAsState()
+    val bufferedProgress by viewModel.bufferedProgress.collectAsState()
     val allSurahs by viewModel.allSurahs.collectAsState()
     val qoriList by viewModel.qoriList.collectAsState()
     val selectedQoriId by viewModel.selectedQoriId.collectAsState()
@@ -57,6 +58,7 @@ fun QuranPlayerScreen(
         val currentState = playbackState
         val currentSurah = (currentState as? AudioPlaybackState.Playing)?.surahNo 
             ?: (currentState as? AudioPlaybackState.Loading)?.surahNo
+            ?: (currentState as? AudioPlaybackState.Buffering)?.surahNo
             
         if (currentSurah != surahNo) {
             viewModel.playAudio(surahNo)
@@ -66,6 +68,7 @@ fun QuranPlayerScreen(
     val currentSurah = allSurahs.find { 
         (playbackState as? AudioPlaybackState.Playing)?.surahNo == it.surahNo ||
         (playbackState as? AudioPlaybackState.Loading)?.surahNo == it.surahNo ||
+        (playbackState as? AudioPlaybackState.Buffering)?.surahNo == it.surahNo ||
         it.surahNo == surahNo // Fallback if state matches route
     } ?: allSurahs.find { it.surahNo == surahNo }
 
@@ -102,12 +105,13 @@ fun QuranPlayerScreen(
         ) {
             CircularProgress(
                 progress = progress,
+                bufferedProgress = bufferedProgress,
                 onProgressChanged = { viewModel.seekTo(it) }
             )
             
             // Gradient Album Art / Lottie Loader
             // Use Crossfade for smooth transition
-            val isLoading = playbackState is AudioPlaybackState.Loading
+            val isLoading = playbackState is AudioPlaybackState.Loading || playbackState is AudioPlaybackState.Buffering
             
             Crossfade(
                 targetState = isLoading, 
@@ -226,9 +230,11 @@ fun QuranPlayerScreen(
 @Composable
 fun CircularProgress(
     progress: Float,
+    bufferedProgress: Float,
     onProgressChanged: (Float) -> Unit
 ) {
     val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    val bufferedColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
     val progressColor = MaterialTheme.colorScheme.primary
     
     var isDragging by remember { mutableStateOf(false) }
@@ -268,6 +274,15 @@ fun CircularProgress(
             drawCircle(
                 color = trackColor,
                 radius = r,
+                style = Stroke(width = strokeWidth)
+            )
+
+            // Buffered Progress Arc
+            drawArc(
+                color = bufferedColor,
+                startAngle = -90f,
+                sweepAngle = bufferedProgress * 360f,
+                useCenter = false,
                 style = Stroke(width = strokeWidth)
             )
 
