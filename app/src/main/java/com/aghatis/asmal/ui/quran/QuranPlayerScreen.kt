@@ -1,13 +1,13 @@
 package com.aghatis.asmal.ui.quran
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -24,10 +24,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import androidx.navigation.NavController
-import com.airbnb.lottie.compose.LottieAnimation
-import com.airbnb.lottie.compose.LottieCompositionSpec
-import com.airbnb.lottie.compose.LottieConstants
-import com.airbnb.lottie.compose.rememberLottieComposition
 import com.aghatis.asmal.R
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -111,7 +107,31 @@ fun QuranPlayerScreen(
                 onProgressChanged = { viewModel.seekTo(it) }
             )
             
-            // Gradient Album Art / Lottie Loader
+            // Shimmer effect for loading
+            val transition = rememberInfiniteTransition(label = "shimmer")
+            val translateAnim by transition.animateFloat(
+                initialValue = 0f,
+                targetValue = 1000f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1200, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "shimmerTranslation"
+            )
+
+            val shimmerColors = listOf(
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+            )
+
+            val shimmerBrush = Brush.linearGradient(
+                colors = shimmerColors,
+                start = Offset.Zero,
+                end = Offset(x = translateAnim, y = translateAnim)
+            )
+            
+            // Gradient Album Art / Shimmer Loader
             // Use Crossfade for smooth transition
             val isLoading = playbackState is AudioPlaybackState.Loading || playbackState is AudioPlaybackState.Buffering
             
@@ -120,23 +140,15 @@ fun QuranPlayerScreen(
                 animationSpec = tween(500),
                 modifier = Modifier
                     .size(220.dp)
-                    .clip(CircleShape)
+                    .clip(CircleShape),
+                label = "loadingTransition"
             ) { loading ->
                 if (loading) {
-                    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.loading_player))
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color.Black), // Background for loader if needed, or transparent
-                        contentAlignment = Alignment.Center
-                    ) {
-                        LottieAnimation(
-                            composition = composition,
-                            iterations = LottieConstants.IterateForever,
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop, // To fill circle
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                            .background(shimmerBrush)
+                    )
                 } else {
                     Box(
                         modifier = Modifier

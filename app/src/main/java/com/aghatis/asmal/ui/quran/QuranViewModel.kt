@@ -4,8 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import android.content.ComponentName
+import com.aghatis.asmal.service.PlaybackService
+import com.google.common.util.concurrent.MoreExecutors
 import com.aghatis.asmal.data.model.SurahEntity
 import com.aghatis.asmal.data.repository.QuranRepository
 import com.aghatis.asmal.data.repository.QoriRepository
@@ -64,7 +69,7 @@ class QuranViewModel(
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
-    private var exoPlayer: ExoPlayer? = null
+    private var player: Player? = null
     private var progressJob: kotlinx.coroutines.Job? = null
 
     private val _allSurahs = MutableStateFlow<List<SurahEntity>>(emptyList())
@@ -99,43 +104,57 @@ class QuranViewModel(
     }
 
     private fun setupPlayer() {
-        exoPlayer = ExoPlayer.Builder(repository.context).build().apply {
-            addListener(object : Player.Listener {
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    _isPlaying.value = isPlaying
-                    if (isPlaying) startProgressUpdate() else stopProgressUpdate()
-                }
+        val sessionToken = SessionToken(repository.context, ComponentName(repository.context, PlaybackService::class.java))
+        val controllerFuture = MediaController.Builder(repository.context, sessionToken).buildAsync()
+        controllerFuture.addListener({
+            try {
+                val controller = controllerFuture.get()
+                player = controller
+                controller.addListener(object : Player.Listener {
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        _isPlaying.value = isPlaying
+                        if (isPlaying) startProgressUpdate() else stopProgressUpdate()
+                    }
 
-                override fun onPlaybackStateChanged(state: Int) {
-                    when (state) {
-                        Player.STATE_BUFFERING -> {
-                            val surahNo = (_playbackState.value as? AudioPlaybackState.Loading)?.surahNo
-                                ?: (_playbackState.value as? AudioPlaybackState.Playing)?.surahNo
-                                ?: (_playbackState.value as? AudioPlaybackState.Buffering)?.surahNo
-                                ?: 0
-                            if (surahNo > 0) _playbackState.value = AudioPlaybackState.Buffering(surahNo)
-                        }
-                        Player.STATE_READY -> {
-                            _currentDuration.value = duration.toInt()
-                            val surahNo = (_playbackState.value as? AudioPlaybackState.Loading)?.surahNo
-                                ?: (_playbackState.value as? AudioPlaybackState.Buffering)?.surahNo
-                                ?: 0
-                            if (surahNo > 0) _playbackState.value = AudioPlaybackState.Playing(surahNo)
-                        }
-                        Player.STATE_ENDED -> {
-                            _playbackState.value = AudioPlaybackState.Idle
-                            _isPlaying.value = false
-                            stopProgressUpdate()
-                            _playbackProgress.value = 1f
-                            _bufferedProgress.value = 1f
-                        }
-                        Player.STATE_IDLE -> {
-                            _playbackState.value = AudioPlaybackState.Idle
+                    override fun onPlaybackStateChanged(state: Int) {
+                        when (state) {
+                            Player.STATE_BUFFERING -> {
+                                val surahNo = (_playbackState.value as? AudioPlaybackState.Loading)?.surahNo
+                                    ?: (_playbackState.value as? AudioPlaybackState.Playing)?.surahNo
+                                    ?: (_playbackState.value as? AudioPlaybackState.Buffering)?.surahNo
+                                    ?: 0
+                                if (surahNo > 0) _playbackState.value = AudioPlaybackState.Buffering(surahNo)
+                            }
+                            Player.STATE_READY -> {
+                                _currentDuration.value = controller.duration.toInt()
+                                val surahNo = (_playbackState.value as? AudioPlaybackState.Loading)?.surahNo
+                                    ?: (_playbackState.value as? AudioPlaybackState.Buffering)?.surahNo
+                                    ?: 0
+                                if (surahNo > 0) _playbackState.value = AudioPlaybackState.Playing(surahNo)
+                            }
+                            Player.STATE_ENDED -> {
+                                _playbackState.value = AudioPlaybackState.Idle
+                                _isPlaying.value = false
+                                stopProgressUpdate()
+                                _playbackProgress.value = 1f
+                                _bufferedProgress.value = 1f
+                            }
+                            Player.STATE_IDLE -> {
+                                _playbackState.value = AudioPlaybackState.Idle
+                            }
                         }
                     }
-                }
-            })
-        }
+                    
+                    // Handle Next/Previous from external (notification)
+                    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                        // If we use playlist, update surahNo here.
+                        // For now we handle via playAudio.
+                    }
+                })
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }, MoreExecutors.directExecutor())
     }
 
     private fun getQoris() {
@@ -152,14 +171,14 @@ class QuranViewModel(
     }
 
     fun togglePlayPause() {
-        exoPlayer?.let { player ->
-            if (player.isPlaying) {
-                player.pause()
+        player?.let { p ->
+            if (p.isPlaying) {
+                p.pause()
             } else {
-                if (player.playbackState == Player.STATE_ENDED) {
-                    player.seekTo(0)
+                if (p.playbackState == Player.STATE_ENDED) {
+                    p.seekTo(0)
                 }
-                player.play()
+                p.play()
             }
         }
     }
@@ -189,9 +208,9 @@ class QuranViewModel(
     }
 
     fun seekTo(progress: Float) {
-        exoPlayer?.let { player ->
-            val newPos = (player.duration * progress).toLong()
-            player.seekTo(newPos)
+        player?.let { p ->
+            val newPos = (p.duration * progress).toLong()
+            p.seekTo(newPos)
             _currentPosition.value = newPos.toInt()
             _playbackProgress.value = progress
         }
@@ -219,7 +238,8 @@ class QuranViewModel(
                 val audioUrl = detail.audio[qoriId]?.url ?: detail.audio["1"]?.url
                 
                 if (audioUrl != null) {
-                    playUrl(audioUrl)
+                    val reciterName = detail.audio[qoriId]?.reciter ?: detail.audio["1"]?.reciter ?: "Unknown"
+                    playUrl(audioUrl, detail.surahName, reciterName, surahNo)
                 } else {
                     _playbackState.value = AudioPlaybackState.Idle
                 }
@@ -229,12 +249,24 @@ class QuranViewModel(
         }
     }
 
-    private fun playUrl(url: String) {
-        exoPlayer?.let { player ->
-            val mediaItem = MediaItem.fromUri(url)
-            player.setMediaItem(mediaItem)
-            player.prepare()
-            player.play()
+    private fun playUrl(url: String, title: String, artist: String, surahNo: Int) {
+        player?.let { p ->
+            val extras = android.os.Bundle().apply {
+                putInt("surahNo", surahNo)
+            }
+            val mediaItem = MediaItem.Builder()
+                .setUri(url)
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle(title)
+                        .setArtist(artist)
+                        .setExtras(extras)
+                        .build()
+                )
+                .build()
+            p.setMediaItem(mediaItem)
+            p.prepare()
+            p.play()
         }
     }
 
@@ -242,10 +274,10 @@ class QuranViewModel(
         stopProgressUpdate()
         progressJob = viewModelScope.launch {
             while (true) {
-                exoPlayer?.let { player ->
-                    val current = player.currentPosition
-                    val buffered = player.bufferedPosition
-                    val total = player.duration
+                player?.let { p ->
+                    val current = p.currentPosition
+                    val buffered = p.bufferedPosition
+                    val total = p.duration
                     if (total > 0) {
                         _currentPosition.value = current.toInt()
                         _playbackProgress.value = current.toFloat() / total.toFloat()
@@ -266,15 +298,15 @@ class QuranViewModel(
         stopProgressUpdate()
         _isPlaying.value = false
         _playbackProgress.value = 0f
-        exoPlayer?.stop()
+        player?.stop()
         _playbackState.value = AudioPlaybackState.Idle
     }
 
     override fun onCleared() {
         super.onCleared()
         stopAudio()
-        exoPlayer?.release()
-        exoPlayer = null
+        (player as? MediaController)?.release()
+        player = null
     }
 
     fun onSearchQueryChange(query: String) {

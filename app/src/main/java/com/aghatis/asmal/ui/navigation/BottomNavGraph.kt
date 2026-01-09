@@ -39,6 +39,9 @@ fun BottomNavGraph(navController: NavHostController) {
             MenuTabScreen(
                 onNavigateToQuran = {
                     navController.navigate("quran")
+                },
+                onNavigateToQibla = {
+                    navController.navigate("qibla")
                 }
             )
         }
@@ -121,6 +124,10 @@ fun BottomNavGraph(navController: NavHostController) {
                 viewModel = quranViewModel,
                 surahNo = surahNo
             )
+        }
+
+        composable("qibla") {
+            com.aghatis.asmal.ui.qibla.QiblaScreen(onNavigateBack = { navController.popBackStack() })
         }
     }
 }

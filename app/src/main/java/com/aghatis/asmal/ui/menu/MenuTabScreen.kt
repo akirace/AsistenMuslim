@@ -35,11 +35,14 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
 @Composable
-fun MenuTabScreen(onNavigateToQuran: () -> Unit) {
+fun MenuTabScreen(
+    onNavigateToQuran: () -> Unit,
+    onNavigateToQibla: () -> Unit
+) {
     val menuItems = listOf(
         MenuItem("Al-Qur'an", Icons.Filled.Star, MaterialTheme.colorScheme.primary, onClick = onNavigateToQuran),
         MenuItem("How to Pray", Icons.Filled.Person, MaterialTheme.colorScheme.secondary, onClick = {}),
-        MenuItem("Qibla", Icons.Filled.LocationOn, MaterialTheme.colorScheme.tertiary, onClick = {}),
+        MenuItem("Qibla", Icons.Filled.LocationOn, MaterialTheme.colorScheme.tertiary, onClick = onNavigateToQibla),
         MenuItem("Dzikir", Icons.Filled.Favorite, MaterialTheme.colorScheme.error, onClick = {}), 
         MenuItem("Doa", Icons.Filled.CheckCircle, MaterialTheme.colorScheme.primary, onClick = {}),
         MenuItem("Hadith", Icons.Filled.Info, MaterialTheme.colorScheme.secondary, onClick = {})
