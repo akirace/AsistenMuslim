@@ -72,4 +72,16 @@ class PrefsRepository(private val context: Context) {
             preferences[KEY_BACKGROUND_URL_DARK] = darkUrl
         }
     }
+
+    private val KEY_QUICK_ACCESS = stringPreferencesKey("quick_access")
+
+    val quickAccessItems: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_QUICK_ACCESS]
+    }
+
+    suspend fun saveQuickAccessItems(items: String) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_QUICK_ACCESS] = items
+        }
+    }
 }

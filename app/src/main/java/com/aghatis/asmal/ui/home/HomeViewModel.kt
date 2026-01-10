@@ -60,6 +60,9 @@ class HomeViewModel(
     private val _mosqueState = MutableStateFlow<MosqueUiState>(MosqueUiState.Loading)
     val mosqueState: StateFlow<MosqueUiState> = _mosqueState.asStateFlow()
 
+    private val _quickAccessIds = MutableStateFlow<List<String>>(listOf("quran", "dzikir"))
+    val quickAccessIds: StateFlow<List<String>> = _quickAccessIds.asStateFlow()
+
     private val _selectedDate = MutableStateFlow(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()))
     val selectedDate: StateFlow<String> = _selectedDate.asStateFlow()
 
@@ -93,6 +96,17 @@ class HomeViewModel(
         loadUser()
         fetchRandomAyah()
         fetchBackgroundsIfNeeded()
+        observeQuickAccess()
+    }
+
+    private fun observeQuickAccess() {
+        viewModelScope.launch {
+            prefsRepository.quickAccessItems.collect { items ->
+                if (items != null) {
+                    _quickAccessIds.value = items.split(",").filter { it.isNotEmpty() }
+                }
+            }
+        }
     }
     
     /**
@@ -196,6 +210,24 @@ class HomeViewModel(
                 _userState.value = user
                 user?.let { observePrayerLog(it.id, _selectedDate.value) }
             }
+        }
+    }
+
+    fun toggleQuickAccess(id: String) {
+        val current = _quickAccessIds.value.toMutableList()
+        if (current.contains(id)) {
+            if (current.size > 1) { // Keep at least one
+                current.remove(id)
+            }
+        } else {
+            if (current.size < 4) { // Limit to 4
+                current.add(id)
+            }
+        }
+        
+        viewModelScope.launch {
+            _quickAccessIds.value = current
+            prefsRepository.saveQuickAccessItems(current.joinToString(","))
         }
     }
 

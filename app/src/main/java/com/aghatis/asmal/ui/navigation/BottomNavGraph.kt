@@ -9,6 +9,7 @@ import com.aghatis.asmal.ui.assistant.AssistantScreen
 import com.aghatis.asmal.ui.components.BottomNavItem
 import com.aghatis.asmal.ui.home.HomeScreen
 import com.aghatis.asmal.ui.menu.MenuTabScreen
+import com.aghatis.asmal.ui.menu.MenuViewModel
 import com.aghatis.asmal.ui.profile.ProfileScreen
 import com.aghatis.asmal.ui.profile.SettingScreen
 import com.aghatis.asmal.ui.quran.QuranViewModel
@@ -20,7 +21,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.remember
 
 @Composable
-fun BottomNavGraph(navController: NavHostController) {
+fun BottomNavGraph(
+    navController: NavHostController,
+    menuViewModel: MenuViewModel
+) {
     NavHost(
         navController = navController,
         startDestination = BottomNavItem.Home.route
@@ -33,15 +37,19 @@ fun BottomNavGraph(navController: NavHostController) {
         // Let's create it at NavHost level for simplicity as per current app architecture.
         
         composable(BottomNavItem.Home.route) {
-            HomeScreen()
+            HomeScreen(navController = navController)
         }
         composable(BottomNavItem.Menu.route) {
             MenuTabScreen(
+                viewModel = menuViewModel,
                 onNavigateToQuran = {
                     navController.navigate("quran")
                 },
                 onNavigateToQibla = {
                     navController.navigate("qibla")
+                },
+                onNavigateToZakat = {
+                    navController.navigate("zakat")
                 }
             )
         }
@@ -128,6 +136,25 @@ fun BottomNavGraph(navController: NavHostController) {
 
         composable("qibla") {
             com.aghatis.asmal.ui.qibla.QiblaScreen(onNavigateBack = { navController.popBackStack() })
+        }
+        composable("zakat") {
+            com.aghatis.asmal.ui.zakat.ZakatScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToDetail = { id -> navController.navigate("zakat_detail/$id") }
+            )
+        }
+        
+        composable(
+            route = "zakat_detail/{zakatId}",
+            arguments = listOf(
+                androidx.navigation.navArgument("zakatId") { type = androidx.navigation.NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val zakatId = backStackEntry.arguments?.getString("zakatId") ?: ""
+            com.aghatis.asmal.ui.zakat.ZakatDetailScreen(
+                zakatId = zakatId,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }

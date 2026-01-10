@@ -53,7 +53,9 @@ class MenuActivity : ComponentActivity() {
         val showBottomBar = currentRoute != "settings" && 
                            currentRoute != "quran" && 
                            currentRoute?.startsWith("quran_detail") != true &&
-                           currentRoute?.startsWith("quran_player") != true
+                           currentRoute?.startsWith("quran_player") != true &&
+                           currentRoute != "zakat" &&
+                           currentRoute?.startsWith("zakat_detail") != true
 
         LaunchedEffect(uiState) {
             if (uiState is MenuUiState.LoggedOut) {
@@ -74,7 +76,7 @@ class MenuActivity : ComponentActivity() {
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                BottomNavGraph(navController = navController)
+                BottomNavGraph(navController = navController, menuViewModel = viewModel)
             }
         }
     }

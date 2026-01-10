@@ -50,9 +50,12 @@ import android.media.MediaPlayer
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import com.aghatis.asmal.data.model.AyahResponse
 import com.aghatis.asmal.data.repository.Mosque
 import com.aghatis.asmal.data.repository.QuranRepository
@@ -60,9 +63,14 @@ import com.aghatis.asmal.data.repository.MosqueRepository
 import com.aghatis.asmal.data.model.PrayerLog
 import com.aghatis.asmal.data.repository.PrayerLogRepository
 import com.aghatis.asmal.data.repository.BackgroundRepository
+import com.aghatis.asmal.ui.theme.DarkGreen
+import com.aghatis.asmal.R
+import com.aghatis.asmal.ui.theme.Teal
+import androidx.navigation.NavController
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen() {
+fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
     
     // Database and DAO instantiation
@@ -101,6 +109,23 @@ fun HomeScreen() {
     val selectedDate by viewModel.selectedDate.collectAsState()
     val prayerProgress by viewModel.prayerProgress.collectAsState()
     val backgroundUrl by viewModel.currentBackgroundUrl.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val quickAccessIds by viewModel.quickAccessIds.collectAsState()
+
+    // Quick Access Data Definition
+    val allOptions = listOf(
+        HomeMenuOption("quran", "Al-Qur'an", Icons.Default.MenuBook, DarkGreen, "quran"),
+        HomeMenuOption("qibla", "Kiblat", R.drawable.ic_kaba_icon, Teal, "qibla"),
+        HomeMenuOption("prayer", "Shalat", Icons.Filled.Person, MaterialTheme.colorScheme.secondary, null), 
+        HomeMenuOption("dzikir", "Dzikir", Icons.Filled.Favorite, MaterialTheme.colorScheme.error, null), 
+        HomeMenuOption("doa", "Doa", Icons.Filled.CollectionsBookmark, MaterialTheme.colorScheme.primary, null),
+        HomeMenuOption("hadith", "Hadits", Icons.Filled.Info, MaterialTheme.colorScheme.secondary, null),
+        HomeMenuOption("zakat", "Zakat", Icons.Filled.Payments, MaterialTheme.colorScheme.tertiary, "zakat"),
+        HomeMenuOption("mosque", "Masjid", Icons.Filled.LocationOn, MaterialTheme.colorScheme.primary, null)
+    )
+
+    var showQuickAccessSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
     
     // Detect system theme and update ViewModel
     val isDarkTheme = isSystemInDarkTheme()
@@ -146,6 +171,41 @@ fun HomeScreen() {
         )
 
         Column(modifier = Modifier.padding(screenPadding())) {
+            
+             // Quick Access Section (New)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Akses Cepat",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                TextButton(onClick = { showQuickAccessSheet = true }) {
+                    Text("Ubah", fontSize = 12.sp)
+                }
+            }
+            
+            val selectedOptions = allOptions.filter { it.id in quickAccessIds }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                selectedOptions.forEach { item ->
+                    HomeQuickAccessItem(
+                        item = item,
+                        onClick = { 
+                            if (item.route != null) {
+                                navController.navigate(item.route)
+                            }
+                        }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
              // Progress and Date Navigator Section
             var showProgressDialog by remember { mutableStateOf(false) }
             
@@ -252,6 +312,100 @@ fun HomeScreen() {
             // Add extra spacer for bottom navigation overlap prevention
             Spacer(modifier = Modifier.height(100.dp))
         }
+    }
+    
+    // Quick Access Sheet
+    if (showQuickAccessSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showQuickAccessSheet = false },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface,
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+             Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 48.dp, start = 24.dp, end = 24.dp)
+            ) {
+                Text(
+                    text = "Sesuaikan Akses Cepat",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.heightIn(max = 400.dp)
+                ) {
+                    items(allOptions.size) { index ->
+                        val option = allOptions[index]
+                        val isSelected = option.id in quickAccessIds
+                        
+                        Surface(
+                            onClick = { viewModel.toggleQuickAccess(option.id) },
+                            shape = RoundedCornerShape(12.dp),
+                             color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            border = if (isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                when (val icon = option.icon) {
+                                    is ImageVector -> Icon(icon, null, tint = option.color, modifier = Modifier.size(20.dp))
+                                    is Int -> Icon(painterResource(icon), null, tint = Color.Unspecified, modifier = Modifier.size(20.dp))
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(option.title, modifier = Modifier.weight(1f))
+                                Checkbox(
+                                    checked = isSelected,
+                                    onCheckedChange = { viewModel.toggleQuickAccess(option.id) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+data class HomeMenuOption(
+    val id: String,
+    val title: String,
+    val icon: Any,
+    val color: Color,
+    val route: String?
+)
+
+@Composable
+fun HomeQuickAccessItem(item: HomeMenuOption, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+            .padding(8.dp)
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = item.color.copy(alpha = 0.1f),
+            modifier = Modifier.size(48.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                when (val icon = item.icon) {
+                    is ImageVector -> Icon(icon, null, tint = item.color, modifier = Modifier.size(24.dp))
+                    is Int -> Icon(painterResource(icon), null, tint = Color.Unspecified, modifier = Modifier.size(28.dp))
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
+        )
     }
 }
 
