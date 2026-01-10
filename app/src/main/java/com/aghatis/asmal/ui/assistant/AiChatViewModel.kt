@@ -10,7 +10,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class AiChatViewModel : ViewModel() {
+import androidx.lifecycle.ViewModelProvider
+import com.aghatis.asmal.data.repository.ChatRepository
+
+class AiChatViewModel(private val chatRepository: ChatRepository) : ViewModel() {
+    
+    private val chatPartner = "Deenia AI"
 
     private val apiKey = com.aghatis.asmal.BuildConfig.GEMINI_API_KEY
     private val modelName = "gemini-2.5-flash-lite" 
@@ -82,15 +87,29 @@ Deenia AI tidak dibuat untuk memenangkan debat, tetapi untuk menenangkan hati da
         )
     )
 
-    private val _messages = MutableStateFlow<List<ChatMessage>>(
-        listOf(
-             ChatMessage(
-                text = "Assalamu'alaikum! Saya Deenia AI. Ada yang bisa saya bantu terkait ibadah atau pertanyaan Islami hari ini?",
-                isUser = false
-            )
-        )
-    )
+    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+
+    init {
+        loadChatHistory()
+    }
+
+    private fun loadChatHistory() {
+        viewModelScope.launch {
+            chatRepository.getChatHistory(chatPartner).collect { history ->
+                if (history.isEmpty()) {
+                    val welcomeMessage = ChatMessage(
+                        text = "Assalamu'alaikum! Saya Deenia AI. Ada yang bisa saya bantu terkait ibadah atau pertanyaan Islami hari ini?",
+                        isUser = false
+                    )
+                    _messages.value = listOf(welcomeMessage)
+                    chatRepository.saveMessage(welcomeMessage, chatPartner)
+                } else {
+                    _messages.value = history
+                }
+            }
+        }
+    }
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -113,10 +132,15 @@ Deenia AI tidak dibuat untuk memenangkan debat, tetapi untuk menenangkan hati da
         // Clear chips after first interaction if desired, or keep them
         // _suggestionChips.value = emptyList() 
 
-        // Add user message to UI immediately
+        // Add user message to UI and save to DB
+        val currentMessage = ChatMessage(text = userMessage, isUser = true)
         val currentList = _messages.value.toMutableList()
-        currentList.add(ChatMessage(text = userMessage, isUser = true))
+        currentList.add(currentMessage)
         _messages.value = currentList
+
+        viewModelScope.launch {
+            chatRepository.saveMessage(currentMessage, chatPartner)
+        }
 
         _isLoading.value = true
 
@@ -124,10 +148,13 @@ Deenia AI tidak dibuat untuk memenangkan debat, tetapi untuk menenangkan hati da
             try {
                 val response = chat.sendMessage(userMessage)
                 val responseText = response.text ?: "Maaf, saya tidak dapat menjawab saat ini."
+                val aiMessage = ChatMessage(text = responseText, isUser = false)
 
                 val updatedList = _messages.value.toMutableList()
-                updatedList.add(ChatMessage(text = responseText, isUser = false))
+                updatedList.add(aiMessage)
                 _messages.value = updatedList
+                
+                chatRepository.saveMessage(aiMessage, chatPartner)
             } catch (e: Exception) {
                 val errorList = _messages.value.toMutableList()
                 errorList.add(
@@ -141,6 +168,16 @@ Deenia AI tidak dibuat untuk memenangkan debat, tetapi untuk menenangkan hati da
             } finally {
                 _isLoading.value = false
             }
+        }
+    }
+
+    class Factory(private val chatRepository: ChatRepository) : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(AiChatViewModel::class.java)) {
+                @Suppress("UNCHECKED_CAST")
+                return AiChatViewModel(chatRepository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
 }

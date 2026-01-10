@@ -37,6 +37,9 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun AiChatScreen(
@@ -130,12 +133,13 @@ fun AiChatScreen(
     }
 }
 
-    @Composable
-    fun ChatHeader(
-        onNavClick: () -> Unit,
-        prayerTimeName: String,
-        prayerTimeLeft: String
-    ) {
+
+@Composable
+fun ChatHeader(
+    onNavClick: () -> Unit,
+    prayerTimeName: String,
+    prayerTimeLeft: String
+) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -200,31 +204,35 @@ fun AiChatScreen(
         }
     }
 
-    @Composable
-    fun DateSeparator() {
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
+@Composable
+fun DateSeparator() {
+    val dateText = remember {
+        val sdf = SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault())
+        sdf.format(Date()).uppercase()
+    }
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(50),
         ) {
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(50),
-            ) {
-                Text(
-                    text = "TODAY, 14 RAMADAN", // Hardcoded for demo/design match
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = dateText,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
+}
 
 
-    @Composable
-    fun ChatMessageBubble(
-        message: ChatMessage
-    ) {
+@Composable
+fun ChatMessageBubble(
+    message: ChatMessage
+) {
         val isUser = message.isUser
         val alignment = if (isUser) Alignment.End else Alignment.Start
 
@@ -297,110 +305,110 @@ fun AiChatScreen(
         }
     }
 
-    @OptIn(ExperimentalLayoutApi::class)
-    @Composable
-    fun SuggestionChipsLayout(chips: List<String>, onChipClick: (String) -> Unit) {
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            for (text in chips) {
-                SuggestionChip(
-                    onClick = { onChipClick(text) },
-                    label = {
-                        Text(
-                            text = text,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    colors = SuggestionChipDefaults.suggestionChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    shape = RoundedCornerShape(50)
-                )
-            }
-        }
-    }
-
-    @Composable
-    fun ChatInputArea(
-        onSend: (String) -> Unit,
-        enabled: Boolean
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun SuggestionChipsLayout(chips: List<String>, onChipClick: (String) -> Unit) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        var text by remember { mutableStateOf("") }
-        val inputBg = MaterialTheme.colorScheme.surfaceVariant
-
-        Surface(
-            color = MaterialTheme.colorScheme.background,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .background(inputBg, RoundedCornerShape(26.dp))
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.size(24.dp)
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Box(modifier = Modifier.weight(1f)) {
-                    if (text.isEmpty()) {
-                        Text(
-                            text = "Ask a question...",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                            modifier = Modifier.align(Alignment.CenterStart)
-                        )
-                    }
-                    androidx.compose.foundation.text.BasicTextField(
-                        value = text,
-                        onValueChange = { text = it },
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
-                        cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.onSurfaceVariant),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(
-                            onSend = {
-                                if (text.isNotBlank()) {
-                                    onSend(text)
-                                    text = ""
-                                }
-                            }
-                        )
-                    )
-                }
-
-                TextButton(
-                    onClick = {
-                        if (text.isNotBlank()) {
-                            onSend(text)
-                            text = ""
-                        }
-                    },
-                    enabled = enabled && text.isNotBlank()
-                ) {
+        for (text in chips) {
+            SuggestionChip(
+                onClick = { onChipClick(text) },
+                label = {
                     Text(
-                        text = "Send",
-                        color = if (text.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                            alpha = 0.4f
-                        ),
-                        fontWeight = FontWeight.Bold
+                        text = text,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                colors = SuggestionChipDefaults.suggestionChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                shape = RoundedCornerShape(50)
+            )
+        }
+    }
+}
+
+@Composable
+fun ChatInputArea(
+    onSend: (String) -> Unit,
+    enabled: Boolean
+) {
+    var text by remember { mutableStateOf("") }
+    val inputBg = MaterialTheme.colorScheme.surfaceVariant
+
+    Surface(
+        color = MaterialTheme.colorScheme.background,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .background(inputBg, RoundedCornerShape(26.dp))
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Menu,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(24.dp)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Box(modifier = Modifier.weight(1f)) {
+                if (text.isEmpty()) {
+                    Text(
+                        text = "Ask a question...",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.align(Alignment.CenterStart)
                     )
                 }
+                androidx.compose.foundation.text.BasicTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.onSurfaceVariant),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(
+                        onSend = {
+                            if (text.isNotBlank()) {
+                                onSend(text)
+                                text = ""
+                            }
+                        }
+                    )
+                )
+            }
+
+            TextButton(
+                onClick = {
+                    if (text.isNotBlank()) {
+                        onSend(text)
+                        text = ""
+                    }
+                },
+                enabled = enabled && text.isNotBlank()
+            ) {
+                Text(
+                    text = "Send",
+                    color = if (text.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                        alpha = 0.4f
+                    ),
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
+}
 
 @Composable
 fun TypingIndicator() {

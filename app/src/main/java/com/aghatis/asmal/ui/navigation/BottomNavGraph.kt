@@ -20,6 +20,7 @@ import com.aghatis.asmal.ui.quran.QuranPlayerScreen
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.remember
+import com.aghatis.asmal.ui.assistant.AiChatViewModel
 
 @Composable
 fun BottomNavGraph(
@@ -58,7 +59,21 @@ fun BottomNavGraph(
             AssistantScreen(onNavigateToAiChat = { navController.navigate("ai_chat") })
         }
         composable("ai_chat") {
-            AiChatScreen(onNavigateBack = { navController.popBackStack() })
+            val context = LocalContext.current
+            val db = remember {
+                androidx.room.Room.databaseBuilder(
+                    context.applicationContext,
+                    com.aghatis.asmal.data.local.AppDatabase::class.java, "asmal-db"
+                ).fallbackToDestructiveMigration().build()
+            }
+            val chatRepository = remember { com.aghatis.asmal.data.repository.ChatRepository(db.chatDao()) }
+            val aiChatViewModel: AiChatViewModel = viewModel(
+                factory = AiChatViewModel.Factory(chatRepository)
+            )
+            AiChatScreen(
+                viewModel = aiChatViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
         composable(BottomNavItem.Profile.route) {
             ProfileScreen(onNavigateToSettings = { navController.navigate("settings") })

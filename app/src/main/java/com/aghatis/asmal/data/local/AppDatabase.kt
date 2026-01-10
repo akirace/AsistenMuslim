@@ -6,11 +6,12 @@ import com.aghatis.asmal.data.local.dao.MosqueDao
 import com.aghatis.asmal.data.local.dao.PrayerDao
 import com.aghatis.asmal.data.local.entity.MosqueCacheEntity
 import com.aghatis.asmal.data.local.entity.PrayerCacheEntity
+import com.aghatis.asmal.data.local.entity.ChatMessageEntity
 import com.aghatis.asmal.data.model.SurahEntity
 
 @Database(
-    entities = [SurahEntity::class, PrayerCacheEntity::class, MosqueCacheEntity::class, com.aghatis.asmal.data.model.QoriEntity::class],
-    version = 3, 
+    entities = [SurahEntity::class, PrayerCacheEntity::class, MosqueCacheEntity::class, com.aghatis.asmal.data.model.QoriEntity::class, ChatMessageEntity::class],
+    version = 4, 
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -18,4 +19,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun prayerDao(): PrayerDao
     abstract fun mosqueDao(): MosqueDao
     abstract fun qoriDao(): com.aghatis.asmal.data.local.dao.QoriDao
+    abstract fun chatDao(): com.aghatis.asmal.data.local.dao.ChatDao
 }
