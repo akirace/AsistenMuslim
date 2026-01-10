@@ -95,8 +95,23 @@ Deenia AI tidak dibuat untuk memenangkan debat, tetapi untuk menenangkan hati da
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _suggestionChips = MutableStateFlow(
+        listOf("Sabar dalam Ujian", "Keutamaan Sedekah", "Cara Sholat Khusyu", "Doa Penenang Hati")
+    )
+    val suggestionChips: StateFlow<List<String>> = _suggestionChips.asStateFlow()
+    
+    // Mock countdown for UI demo purposes as requested
+    private val _prayerTimeCountdown = MutableStateFlow("Asr 15:30") 
+    val prayerTimeCountdown: StateFlow<String> = _prayerTimeCountdown.asStateFlow()
+    
+    private val _nextPrayerTime = MutableStateFlow("14 min to Maghrib")
+    val nextPrayerTime: StateFlow<String> = _nextPrayerTime.asStateFlow()
+
     fun sendMessage(userMessage: String) {
         if (userMessage.isBlank()) return
+
+        // Clear chips after first interaction if desired, or keep them
+        // _suggestionChips.value = emptyList() 
 
         // Add user message to UI immediately
         val currentList = _messages.value.toMutableList()
