@@ -6,6 +6,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.aghatis.asmal.ui.assistant.AssistantScreen
+import com.aghatis.asmal.ui.assistant.AiChatScreen
 import com.aghatis.asmal.ui.components.BottomNavItem
 import com.aghatis.asmal.ui.home.HomeScreen
 import com.aghatis.asmal.ui.menu.MenuTabScreen
@@ -54,7 +55,10 @@ fun BottomNavGraph(
             )
         }
         composable(BottomNavItem.Assistant.route) {
-            // AssistantScreen()
+            AssistantScreen(onNavigateToAiChat = { navController.navigate("ai_chat") })
+        }
+        composable("ai_chat") {
+            AiChatScreen(onNavigateBack = { navController.popBackStack() })
         }
         composable(BottomNavItem.Profile.route) {
             ProfileScreen(onNavigateToSettings = { navController.navigate("settings") })

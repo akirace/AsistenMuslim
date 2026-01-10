@@ -55,7 +55,8 @@ class MenuActivity : ComponentActivity() {
                            currentRoute?.startsWith("quran_detail") != true &&
                            currentRoute?.startsWith("quran_player") != true &&
                            currentRoute != "zakat" &&
-                           currentRoute?.startsWith("zakat_detail") != true
+                           currentRoute?.startsWith("zakat_detail") != true &&
+                           currentRoute != "ai_chat"
 
         LaunchedEffect(uiState) {
             if (uiState is MenuUiState.LoggedOut) {
