@@ -10,14 +10,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -28,6 +26,7 @@ import com.aghatis.asmal.data.model.ChatMessage
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.material3.SuggestionChip
@@ -53,15 +52,11 @@ fun AiChatScreen(
         }
     }
 
-    // Custom Dark Theme Colors for this screen (as requested)
-    val darkGreenBg = Color(0xFF0E1A14) // Dark Greenish Black
-    val bubbleGreen = Color(0xFF1B3B2B) // Dark Green Bubble
-    val userGreen = Color(0xFF25D366) // Bright Green (WhatsApp-like/Islamic modern)
-    val textLight = Color(0xFFE0ECE6)
+    val colorScheme = MaterialTheme.colorScheme
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = darkGreenBg,
+        containerColor = colorScheme.background,
         topBar = {
             ChatHeader(
                 onNavClick = { /* Open Drawer */ },
@@ -90,20 +85,14 @@ fun AiChatScreen(
                 }
 
                 items(messages) { message ->
-                    ChatMessageBubble(
-                        message = message,
-                        aiBubbleColor = bubbleGreen,
-                        userBubbleColor = userGreen,
-                        textColor = textLight
-                    )
+                    ChatMessageBubble(message = message)
                 }
 
                 if (isLoading) {
                     item { TypingIndicator() }
                 }
                 
-                // Suggestion Chips (Only show if history is short or always at bottom? User said "first chat give example with chips")
-                // We'll place them at the bottom of the list for now
+                // Suggestion Chips
                 if (messages.size <= 2 && !isLoading) {
                    item {
                        SuggestionChipsLayout(chips) { chipText ->
@@ -143,7 +132,7 @@ fun ChatHeader(
             Icon(
                 imageVector = Icons.Default.Menu,
                 contentDescription = "Menu",
-                tint = Color.White,
+                tint = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.size(28.dp)
             )
             Spacer(modifier = Modifier.width(16.dp))
@@ -152,20 +141,20 @@ fun ChatHeader(
                     Text(
                         text = "Deenia AI",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         imageVector = Icons.Filled.CheckCircle, // Verified Icon
                         contentDescription = "Verified",
-                        tint = Color(0xFF25D366),
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(14.dp)
                     )
                 }
                 Text(
                     text = "ONLINE",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = Color(0xFF25D366)
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -176,20 +165,20 @@ fun ChatHeader(
                 Icon(
                     imageVector = Icons.Default.AccessTime,
                     contentDescription = "Time",
-                    tint = Color(0xFF25D366),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = prayerTimeName,
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color(0xFF25D366)
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
             Text(
                 text = prayerTimeLeft,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
             )
         }
     }
@@ -202,14 +191,14 @@ fun DateSeparator() {
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            color = Color.White.copy(alpha = 0.1f),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
             shape = RoundedCornerShape(50),
         ) {
             Text(
                 text = "TODAY, 14 RAMADAN", // Hardcoded for demo/design match
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                 style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
-                color = Color.White.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -217,17 +206,13 @@ fun DateSeparator() {
 
 @Composable
 fun ChatMessageBubble(
-    message: ChatMessage,
-    aiBubbleColor: Color,
-    userBubbleColor: Color,
-    textColor: Color
+    message: ChatMessage
 ) {
     val isUser = message.isUser
     val alignment = if (isUser) Alignment.End else Alignment.Start
     
-    // User text is usually dark on bright green, AI text is light on dark green
-    val contentColor = if (isUser) Color.Black else Color(0xFFE0ECE6)
-    val bubbleColor = if (isUser) userBubbleColor else aiBubbleColor
+    val bubbleColor = if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+    val contentColor = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -242,13 +227,13 @@ fun ChatMessageBubble(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF2E4F3E)), // Slightly lighter green for avatar bg
+                        .background(MaterialTheme.colorScheme.secondaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Filled.AutoAwesome,
                         contentDescription = "AI",
-                        tint = Color(0xFF25D366),
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -278,11 +263,15 @@ fun ChatMessageBubble(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE0ECE6)),
+                        .background(MaterialTheme.colorScheme.secondaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
-                     // Placeholder User Icon
-                     Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(Color.Gray))
+                     Icon(
+                         imageVector = Icons.Default.Person,
+                         contentDescription = null,
+                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                         modifier = Modifier.size(16.dp)
+                     )
                 }
             }
         }
@@ -303,12 +292,12 @@ fun SuggestionChipsLayout(chips: List<String>, onChipClick: (String) -> Unit) {
                 label = { 
                     Text(
                         text = text, 
-                        color = Color.White.copy(alpha = 0.9f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     ) 
                 },
                 colors = SuggestionChipDefaults.suggestionChipColors(
-                    containerColor = Color.White.copy(alpha = 0.1f),
-                    labelColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                 ),
                 shape = RoundedCornerShape(50)
             )
@@ -322,24 +311,23 @@ fun ChatInputArea(
     enabled: Boolean
 ) {
     var text by remember { mutableStateOf("") }
-    val darkInputBg = Color(0xFF1B3B2B)
+    val inputBg = MaterialTheme.colorScheme.surfaceVariant
 
     Surface(
-        color = Color(0xFF0E1A14), // Match screen bg
+        color = MaterialTheme.colorScheme.background,
         modifier = Modifier.fillMaxWidth().padding(16.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(darkInputBg, RoundedCornerShape(26.dp))
-                .padding(horizontal = 16.dp, vertical = 4.dp), // Adjust padding
+                .background(inputBg, RoundedCornerShape(26.dp))
+                .padding(horizontal = 16.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon Left (Library/Books) - Optional from image UI
             Icon(
-                imageVector = Icons.Default.Menu, // Placeholder for library
+                imageVector = Icons.Default.Menu,
                 contentDescription = null,
-                tint = Color.White.copy(alpha = 0.5f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(24.dp)
             )
             
@@ -349,15 +337,15 @@ fun ChatInputArea(
                  if (text.isEmpty()) {
                     Text(
                         text = "Ask a question...",
-                        color = Color.White.copy(alpha = 0.4f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                         modifier = Modifier.align(Alignment.CenterStart)
                     )
                 }
                 androidx.compose.foundation.text.BasicTextField(
                     value = text,
                     onValueChange = { text = it },
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
-                    cursorBrush = androidx.compose.ui.graphics.SolidColor(Color.White),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.onSurfaceVariant),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 12.dp),
@@ -384,7 +372,7 @@ fun ChatInputArea(
             ) {
                 Text(
                     text = "Send",
-                    color = if (text.isNotBlank()) Color(0xFF25D366) else Color.White.copy(alpha = 0.4f),
+                    color = if (text.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -401,7 +389,7 @@ fun TypingIndicator() {
         Text(
             text = "Deenia sedang mengetik...",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
         )
     }
 }
