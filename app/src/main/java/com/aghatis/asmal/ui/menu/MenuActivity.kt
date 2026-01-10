@@ -16,6 +16,7 @@ import com.aghatis.asmal.ui.theme.AsistenAmalMuslimTheme
 import com.aghatis.asmal.data.model.AppTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.aghatis.asmal.data.repository.AuthRepository
 import com.aghatis.asmal.data.repository.PrefsRepository
 import com.aghatis.asmal.ui.login.LoginActivity
@@ -75,7 +76,10 @@ class MenuActivity : ComponentActivity() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .padding(
+                        top = innerPadding.calculateTopPadding(),
+                        bottom = if (showBottomBar) innerPadding.calculateBottomPadding() else 0.dp
+                    )
             ) {
                 BottomNavGraph(navController = navController, menuViewModel = viewModel)
             }
